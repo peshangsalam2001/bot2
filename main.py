@@ -1,99 +1,121 @@
-from telebot import TeleBot, types
+import telebot
+from telebot import types
 
-TOKEN = "8072279299:AAF-iMur2T62-LDnXXsQVGSg16Lqc1f1UXA"
-bot = TeleBot(TOKEN)
+API_TOKEN = '8072279299:AAF-iMur2T62-LDnXXsQVGSg16Lqc1f1UXA'
+bot = telebot.TeleBot(API_TOKEN)
 
+# داتاکان
 user_coins = {}
+user_steps = {}
+
+# زانیاری کۆرسەکان
 courses_data = {
-    'کۆرسی مایکرۆسۆفت ئێکسڵ (٢٠ کۆین)': 20,
-    'کۆرسی زمانی پایسۆن (١٥ کۆین)': 15,
-    'کۆرسی مایکرۆسۆفت ئەکسس (١٠ کۆین)': 10
+    'کۆرسی مایکرۆسۆفت ئێکسڵ': 20,
+    'کۆرسی زمانی پایسۆن': 15,
+    'کۆرسی مایکرۆسۆفت ئەکسس': 10
 }
 
-def get_welcome_message(first_name):
-    return (f"سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ، \n"
-            f"ئەم بۆتە تایبەتە بە کۆمەڵێک خزمەتگوزاری و زانیاری، هەر یەکە لە کڕینی کۆرس و زانینی کۆینەکانت و زانیاری تەکنەلۆجی و زۆر شتی تر\n\n"
-            f"بۆ هەر یەکێک لەو تایبەتمەندیانە پەنجە بە دوگمەی مەبەست بنێ")
+# لینکی بانگهێشت
+invite_link = 'https://t.me/Kurd2Bot_Bot?start=ref'
 
-def get_main_keyboard():
-    markup = types.InlineKeyboardMarkup()
-    markup.add(
-        types.InlineKeyboardButton("کۆینەکانم", callback_data="coins"),
-        types.InlineKeyboardButton("لینکی بانگهێشتنامە", callback_data="invite"),
-        types.InlineKeyboardButton("کۆرسەکان", callback_data="courses"),
-        types.InlineKeyboardButton("هەموو بۆتەکانم", callback_data="bots")
-    )
-    return markup
-
+# فەرمی سەرەتا
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
+def start(message):
     user_id = message.from_user.id
     first_name = message.from_user.first_name
-    if user_id not in user_coins:
-        user_coins[user_id] = 0
+    user_coins.setdefault(user_id, 0)
 
-    with open('peshang.jpg', 'rb') as photo:
-        bot.send_photo(message.chat.id, photo, caption=get_welcome_message(first_name), reply_markup=get_main_keyboard())
+    photo_url = 'https://i.imgur.com/CwdrpWr.jpeg'
+    caption = f"""سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ.
+ئەم بۆتە تایبەتە بە کۆمەڵێک خزمەتگوزاری و زانیاری، هەر یەکە لە کڕینی کۆرس، زانینی کۆینەکانت، زانیاری تەکنەلۆجی و زۆر شتی تر.
 
+بۆ هەر یەکێک لەو تایبەتمەندیانە پەنجە بە دوگمەی مەبەست بنێ:
+"""
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("کۆینەکانم", callback_data='my_coins'),
+        types.InlineKeyboardButton("لینکی بانگهێشتنامە", callback_data='invite_link'),
+        types.InlineKeyboardButton("کۆرسەکان", callback_data='courses'),
+        types.InlineKeyboardButton("هەموو بۆتەکانم", callback_data='all_bots')
+    )
+    bot.send_photo(user_id, photo_url, caption=caption, reply_markup=markup)
+
+# handle callback buttons
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     user_id = call.from_user.id
-    chat_id = call.message.chat.id
-    msg_id = call.message.message_id
     first_name = call.from_user.first_name
 
-    if call.data == "back":
-        with open('peshang.jpg', 'rb') as photo:
-            bot.edit_message_media(media=types.InputMediaPhoto(photo), chat_id=chat_id, message_id=msg_id)
-            bot.edit_message_caption(chat_id=chat_id, message_id=msg_id,
-                                     caption=get_welcome_message(first_name), reply_markup=get_main_keyboard())
+    if user_id not in user_coins:
+        user_coins[user_id] = 0
 
-    elif call.data == "coins":
-        text = (f"بەڕێز {first_name}، ئەم کۆینە بۆ مەبەستی کڕینی کۆرسەکان بەکاردێت،\n"
-                f"دەتوانیت لەڕێگەی لینکی بانگهێشتنامە یاخود کڕینی کۆرسەکان بتوانی کۆینی زۆرتر کۆبکەیتەوە\n\n"
-                f"تۆ ئێستا {user_coins.get(user_id, 0)} کۆینت هەیە")
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data="back"))
-        bot.edit_message_caption(chat_id=chat_id, message_id=msg_id, caption=text, reply_markup=markup)
+    if call.data == 'my_coins':
+        user_steps[user_id] = 'main_menu'
+        coins = user_coins.get(user_id, 0)
+        text = f"""بەڕێز {first_name}، ئەم کۆینە بۆ مەبەستی کڕینی کۆرسەکان بەکاردێت.
 
-    elif call.data == "invite":
-        invite_link = "https://t.me/Kurd2Bot_Bot?start={}".format(user_id)
-        text = f"ئەمە لینکەکەتە:\n{invite_link}"
+تۆ ئێستا {coins} کۆینت هەیە.
+دەتوانیت لەڕێگەی لینکی بانگهێشتنامە یاخود کڕینی کۆرسەکان بتوانی کۆینی زۆرتر کۆبکەیتەوە.
+"""
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data="back"))
-        bot.edit_message_caption(chat_id=chat_id, message_id=msg_id, caption=text, reply_markup=markup)
+        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
+        bot.send_message(call.message.chat.id, text, reply_markup=markup)
 
-    elif call.data == "courses":
+    elif call.data == 'invite_link':
+        user_steps[user_id] = 'main_menu'
         markup = types.InlineKeyboardMarkup()
-        for name, price in courses_data.items():
-            markup.add(types.InlineKeyboardButton(name, callback_data=f"buy_{name}"))
-        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data="back"))
-        bot.edit_message_caption(chat_id=chat_id, message_id=msg_id, caption="لیستی کۆرسەکان:", reply_markup=markup)
+        markup.add(types.InlineKeyboardButton("کۆپی کردنی لینک", url=invite_link))
+        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
+        bot.send_message(call.message.chat.id, "ئەمە لینکی بانگهێشتنامەکەتە:", reply_markup=markup)
+
+    elif call.data == 'courses':
+        user_steps[user_id] = 'courses'
+        markup = types.InlineKeyboardMarkup()
+        for course, price in courses_data.items():
+            markup.add(types.InlineKeyboardButton(f"{course} ({price} کۆین)", callback_data=f"buy_{course}"))
+        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
+        bot.send_message(call.message.chat.id, "کۆرسە بەردەستەکان:", reply_markup=markup)
 
     elif call.data.startswith("buy_"):
         course_name = call.data.replace("buy_", "")
         price = courses_data.get(course_name, 0)
-
-        if price == 0 and course_name == 'کۆرسی مایکرۆسۆفت وۆرد - ئاستی سەرەتا':
-            bot.answer_callback_query(call.id, text="لە یوتیوب دەکرێتەوە")
-            bot.edit_message_caption(chat_id=chat_id, message_id=msg_id,
-                                     caption=f"ئەم کۆرسیە خۆڕاییە. کلیک بکە لەسەر ئەم لینکە:\n\nhttps://www.youtube.com/watch?v=JZ88S75tqmk&t=1s")
-            return
-
         if user_coins[user_id] >= price:
             user_coins[user_id] -= price
-            text = f"پیرۆزە! کۆرسی '{course_name}' بەسەرکەوتوویی کڕدرایەوە."
+            bot.send_message(call.message.chat.id, f"پیرۆزە! کۆرسی '{course_name}' بەسەرکەوتوویی کڕدرایەوە.")
         else:
-            text = "ببوورە، تۆ بڕی پێویست لە کۆینت نیە بۆ کڕینی ئەم کۆرسە."
+            bot.send_message(call.message.chat.id, "ببوورە، تۆ بڕی پێویست لە کۆینت نیە بۆ کڕینی ئەم کۆرسە.")
 
         markup = types.InlineKeyboardMarkup()
         markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
-        bot.edit_message_caption(chat_id=chat_id, message_id=msg_id, caption=text, reply_markup=markup)
+        bot.send_message(call.message.chat.id, "دەست خۆشبێ!", reply_markup=markup)
 
-    elif call.data == "bots":
-        text = "ئەمە بۆتەکەتە: @PeshangTestBot"
+    elif call.data == 'all_bots':
+        user_steps[user_id] = 'main_menu'
         markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data="back"))
-        bot.edit_message_caption(chat_id=chat_id, message_id=msg_id, caption=text, reply_markup=markup)
+        markup.add(types.InlineKeyboardButton("@PeshangTestBot", url="https://t.me/PeshangTestBot"))
+        markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
+        bot.send_message(call.message.chat.id, "ئەمە بۆتە تایبەتیەکانت:", reply_markup=markup)
 
-bot.infinity_polling()
+    elif call.data == 'back':
+        show_main_menu(call.message.chat.id, first_name)
+
+def show_main_menu(chat_id, first_name):
+    photo_url = 'https://i.imgur.com/CwdrpWr.jpeg'
+    caption = f"""سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ.
+ئەم بۆتە تایبەتە بە کۆمەڵێک خزمەتگوزاری و زانیاری، هەر یەکە لە کڕینی کۆرس، زانینی کۆینەکانت، زانیاری تەکنەلۆجی و زۆر شتی تر.
+
+بۆ هەر یەکێک لەو تایبەتمەندیانە پەنجە بە دوگمەی مەبەست بنێ:
+"""
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("کۆینەکانم", callback_data='my_coins'),
+        types.InlineKeyboardButton("لینکی بانگهێشتنامە", callback_data='invite_link'),
+        types.InlineKeyboardButton("کۆرسەکان", callback_data='courses'),
+        types.InlineKeyboardButton("هەموو بۆتەکانم", callback_data='all_bots')
+    )
+    bot.send_photo(chat_id, photo_url, caption=caption, reply_markup=markup)
+
+# Start bot
+bot.polling()
