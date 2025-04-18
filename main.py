@@ -4,26 +4,32 @@ from telebot import types
 TOKEN = '8072279299:AAF-iMur2T62-LDnXXsQVGSg16Lqc1f1UXA'
 bot = telebot.TeleBot(TOKEN)
 
-# داتابەیسی سادە بۆ نموونە
+# داتابەیسی سادە: کۆینەکان و بانگەوازکردن
 user_coins = {}
+invited_users = set()
 
 @bot.message_handler(commands=['start'])
-def welcome(message):
+def start(message):
+    user_id = message.from_user.id
+    first_name = message.from_user.first_name
     args = message.text.split()
-    inviter_id = None
 
-    # ئەگەر بەکارهێنەر لە ڕێگەی لینکی بانگەواز هاتووە
+    # چاککردنی ئەوەی ناوی بەکارهێنەر تۆمار نەکراو بوو
+    if user_id not in user_coins:
+        user_coins[user_id] = 0
+
+    # بەکارهێنەری نوێ لە ڕێگەی بانگەواز
     if len(args) > 1:
         inviter_id = args[1]
-        if inviter_id != str(message.from_user.id):
-            user_coins[inviter_id] = user_coins.get(inviter_id, 0) + 1
-            bot.send_message(int(inviter_id), f"بەکارهێنەری نوێیەکت بەشداربوو، 1 کۆینت زیادکرا. کۆینی ئێستات: {user_coins[inviter_id]}")
+        if inviter_id != str(user_id):  # بەکارهێنەری خۆی نەبێ
+            key = f"{inviter_id}_{user_id}"
+            if key not in invited_users:
+                invited_users.add(key)
+                user_coins[int(inviter_id)] = user_coins.get(int(inviter_id), 0) + 1
+                bot.send_message(int(inviter_id),
+                                 f"سڵاو! کەسێک بە لایکت هاتە ناو بۆتەکە. 1 کۆینت زیاد کرا. کۆینی ئێستات: {user_coins[int(inviter_id)]}")
 
-    first_name = message.from_user.first_name
-    user_id = message.from_user.id
-    if user_id not in user_coins:
-        user_coins[user_id] = 0  # سەرجەم بەکارهێنەران دەبینریت
-
+    # ناردنی نامەی سەرەکی و دوگمەکان
     welcome_text = f"""سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ.
 ئەم بۆتە تایبەتە بە کۆمەڵێک خزمەتگوزاری و زانیاری، هەر یەکە لە کڕینی کۆرس، زانینی کۆینەکانت، زانیاری تەکنەلۆجی و زۆر شتی تر.
 
@@ -49,11 +55,9 @@ def handle_buttons(call):
         coins = user_coins.get(user_id, 0)
         bot.send_message(call.message.chat.id,
                          f"بەڕێز {first_name}، ئەم کۆینە بۆ مەبەستی کڕینی کۆرسەکان بەکاردێت.\n"
-                         f"دەتوانیت لە ڕێگەی لینکی بانگهێشتنامە یان کڕینی کۆرسەکان، کۆینی زۆرتر کۆبکەیتەوە.\n\n"
                          f"تۆ ئێستا {coins} کۆینت هەیە.")
 
     elif call.data == 'invite_link':
-        user_id = call.from_user.id
         link = f"https://t.me/YOUR_BOT_USERNAME?start={user_id}"
         bot.send_message(call.message.chat.id, f"ئەمە لینکی بانگهێشتنامەکەتە:\n{link}")
 
