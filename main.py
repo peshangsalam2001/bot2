@@ -5,23 +5,47 @@ TOKEN = '8072279299:AAF-iMur2T62-LDnXXsQVGSg16Lqc1f1UXA'
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
-def send_welcome(message):
-    markup = types.InlineKeyboardMarkup()
-    markup.row_width = 2
+def welcome(message):
+    first_name = message.from_user.first_name
+
+    welcome_text = f"""سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ.
+ئەم بۆتە تایبەتە بە کۆمەڵێک خزمەتگوزاری و زانیاری، هەر یەکە لە کڕینی کۆرس، زانینی کۆینەکانت، زانیاری تەکنەلۆجی و زۆر شتی تر.
+
+بۆ هەر یەکێک لەو تایبەتمەندیانە پەنجە بە دوگمەی مەبەست بنێ:
+"""
+
+    markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("ووضو - تەواوکردن", callback_data="wudu"),
-        types.InlineKeyboardButton("نوێژکردن", callback_data="prayer"),
-        types.InlineKeyboardButton("کاتەکانی نوێژ", callback_data="times")
+        types.InlineKeyboardButton("١. کۆینەکانم", callback_data='my_coins'),
+        types.InlineKeyboardButton("٢. لینکی بانگهێشتنامە", callback_data='invite_link'),
+        types.InlineKeyboardButton("٣. کۆرسەکان", callback_data='courses'),
+        types.InlineKeyboardButton("٤. هەموو بۆتەکانم", callback_data='all_bots'),
+        types.InlineKeyboardButton("٥. گەڕانەوە", callback_data='back')
     )
-    bot.send_message(message.chat.id, "بەخێربێیت بۆ فێربوونی نوێژ، تکایە یەکێک لە دوگمەکان هەڵبژێرە:", reply_markup=markup)
+
+    bot.send_message(message.chat.id, welcome_text, reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: True)
-def handle_query(call):
-    if call.data == "wudu":
-        bot.send_message(call.message.chat.id, "چۆنیەتی تەواوکردن (ووضو):\n١. دەتەوێت دەستی ڕاستت وەشێیت...\n٢. دەم، پێ، گوێ، پێشانی، وە هتد.")
-    elif call.data == "prayer":
-        bot.send_message(call.message.chat.id, "چۆنیەتی نوێژکردن:\n١. نیت\n٢. تکبیرە\n٣. قراەتەکان و ڕکوع و سەجدە...\nوە هتد.")
-    elif call.data == "times":
-        bot.send_message(call.message.chat.id, "کاتەکانی نوێژ:\n- بەیانی: 5:00\n- نیوڕۆ: 12:30\n- ئێوارە: 3:45\n- مەغریب: 6:10\n- عیشا: 7:30")
+def handle_buttons(call):
+    first_name = call.from_user.first_name
+
+    if call.data == 'my_coins':
+        msg = f"""بەڕێز {first_name}، ئەم کۆینە بۆ مەبەستی کڕینی کۆرسەکان بەکاردێت.
+دەتوانیت لە ڕێگەی لینکی بانگهێشتنامە یان کڕینی کۆرسەکان، کۆینی زۆرتر کۆبکەیتەوە.
+
+تۆ ئێستا 0 کۆینت هەیە."""
+        bot.send_message(call.message.chat.id, msg)
+
+    elif call.data == 'invite_link':
+        bot.send_message(call.message.chat.id, "ئەمە لینکی بانگهێشتنامەکەتە:\nhttps://t.me/your_bot?start=invite")
+
+    elif call.data == 'courses':
+        bot.send_message(call.message.chat.id, "ئەمە لیستی کۆرسەکانە:\n- Excel\n- Python\n- Telegram Bots\n...\nپەیوەندیم پێوە بکە بۆ زانیاری زیاتر.")
+
+    elif call.data == 'all_bots':
+        bot.send_message(call.message.chat.id, "ئەمە لیستی هەموو بۆتەکانم:\n- @ExcelKurdBot\n- @TechInfoBot\n- ...")
+
+    elif call.data == 'back':
+        welcome(call.message)  # گەڕاندنەوە بۆ سەرەتا
 
 bot.polling()
