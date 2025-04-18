@@ -22,13 +22,7 @@ courses = {
 @bot.message_handler(commands=['start'])
 def start(message):
     user_id = message.from_user.id
-    if user_id not in users:
-        users[user_id] = {"coins": 0, "invited": set()}
-    bot.send_message(message.chat.id,
-        f"بەخێربێیت بۆ بۆتی فرۆشتنی کۆرسەکان!\n"
-        f"بۆ بەدەست هێنانی کۆرس، پێویستە {required_coins} کۆینت هەبێت.\n"
-        f"هەرکاتێک هاوڕێکت هێنایە بۆ ناو بۆتەکە، ١ کۆین دەدەیت.\n"
-        f"بۆ بینینی لینک: /invite")
+    bot.send_message(message.chat.id, f"سڵاو! IDـی تۆ: {user_id}")
 
 # Command: /invite
 @bot.message_handler(commands=['invite'])
