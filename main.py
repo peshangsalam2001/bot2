@@ -76,7 +76,7 @@ def handle_buttons(call):
     elif call.data == 'courses':
         markup = types.InlineKeyboardMarkup()
         for course, price in courses_data.items():
-            markup.add(types.InlineKeyboardButton(f"{course} - {price} کۆین", callback_data=f"buy_{course}"))
+            markup.add(types.InlineKeyboardButton(f"{course} - کۆین {price}", callback_data=f"buy_{course}"))
         markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
         bot.send_message(call.message.chat.id, "کۆرسە بەردەستەکان:", reply_markup=markup)
 
