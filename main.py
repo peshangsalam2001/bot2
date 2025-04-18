@@ -16,11 +16,10 @@ def welcome(message):
 
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
-        types.InlineKeyboardButton("١. کۆینەکانم", callback_data='my_coins'),
-        types.InlineKeyboardButton("٢. لینکی بانگهێشتنامە", callback_data='invite_link'),
-        types.InlineKeyboardButton("٣. کۆرسەکان", callback_data='courses'),
-        types.InlineKeyboardButton("٤. هەموو بۆتەکانم", callback_data='all_bots'),
-        types.InlineKeyboardButton("٥. گەڕانەوە", callback_data='back')
+        types.InlineKeyboardButton("کۆینەکانم", callback_data='my_coins'),
+        types.InlineKeyboardButton("لینکی بانگهێشتنامە", callback_data='invite_link'),
+        types.InlineKeyboardButton("کۆرسەکان", callback_data='courses'),
+        types.InlineKeyboardButton("هەموو بۆتەکانم", callback_data='all_bots')
     )
 
     bot.send_message(message.chat.id, welcome_text, reply_markup=markup)
@@ -44,8 +43,5 @@ def handle_buttons(call):
 
     elif call.data == 'all_bots':
         bot.send_message(call.message.chat.id, "ئەمە لیستی هەموو بۆتەکانم:\n- @ExcelKurdBot\n- @TechInfoBot\n- ...")
-
-    elif call.data == 'back':
-        welcome(call.message)  # گەڕاندنەوە بۆ سەرەتا
 
 bot.polling()
