@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 
-API_TOKEN = '8072279299:AAF-iMur2T62-LDnXXsQVGSg16Lqc1f1UXA'
+API_TOKEN = '7007340673:AAEhp1W1PhoUq_rOcssQVDIvq0OZVEXHARM'
 bot = telebot.TeleBot(API_TOKEN)
 
 # داتاکان
