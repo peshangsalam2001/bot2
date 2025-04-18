@@ -27,7 +27,7 @@ def start(message):
                 invited_users.add(key)
                 user_coins[int(inviter_id)] = user_coins.get(int(inviter_id), 0) + 1
                 bot.send_message(int(inviter_id),
-                                 f"سڵاو! کەسێک بە لایکت هاتە ناو بۆتەکە. 1 کۆینت زیاد کرا. کۆینی ئێستات: {user_coins[int(inviter_id)]}")
+                                 f"سڵاو! کەسێک لەڕێگەی لینکی بانگهێشتنامەکەت هاتە ناو بۆتەکە. 1 کۆینت زیاد کرا. کۆینی ئێستات: {user_coins[int(inviter_id)]}")
 
     # ناردنی نامەی سەرەکی و دوگمەکان
     welcome_text = f"""سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ.
