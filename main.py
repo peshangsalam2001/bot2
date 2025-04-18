@@ -16,7 +16,7 @@ courses_data = {
 }
 
 # لینکی بانگهێشت
-invite_link = 'https://t.me/YOUR_BOT_USERNAME?start=ref'
+invite_link = 'https://t.me/Kurd2Bot_Bot?start=ref'
 
 # فەرمی سەرەتا
 @bot.message_handler(commands=['start'])
@@ -98,27 +98,24 @@ def handle_callback(call):
         bot.send_message(call.message.chat.id, "ئەمە بۆتە تایبەتیەکانت:", reply_markup=markup)
 
     elif call.data == 'back':
-        step = user_steps.get(user_id, 'main_menu')
+        show_main_menu(call.message.chat.id, first_name)
 
-        if step == 'courses':
-            markup = types.InlineKeyboardMarkup()
-            for course, price in courses_data.items():
-                markup.add(types.InlineKeyboardButton(f"{course} ({price} کۆین)", callback_data=f"buy_{course}"))
-            markup.add(types.InlineKeyboardButton("گەڕانەوە", callback_data='back'))
-            bot.send_message(call.message.chat.id, "کۆرسە بەردەستەکان:", reply_markup=markup)
+def show_main_menu(chat_id, first_name):
+    photo_url = 'https://i.imgur.com/CwdrpWr.jpeg'
+    caption = f"""سڵاو بەڕێز {first_name}، بەخێربێیت بۆ بۆتی ئەکادیمیای پێشەنگ.
+ئەم بۆتە تایبەتە بە کۆمەڵێک خزمەتگوزاری و زانیاری، هەر یەکە لە کڕینی کۆرس، زانینی کۆینەکانت، زانیاری تەکنەلۆجی و زۆر شتی تر.
 
-        else:
-            start(call.message)
+بۆ هەر یەکێک لەو تایبەتمەندیانە پەنجە بە دوگمەی مەبەست بنێ:
+"""
 
-# بەشی زیادکردنی کۆین بەڕێی invite (وەکەمان شاراوەتەوە)
-@bot.message_handler(commands=['start'])
-def handle_start_with_ref(message):
-    user_id = message.from_user.id
-    if 'ref' in message.text:
-        if user_id not in user_coins:
-            user_coins[user_id] = 0
-        user_coins[user_id] += 5
-    start(message)
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("کۆینەکانم", callback_data='my_coins'),
+        types.InlineKeyboardButton("لینکی بانگهێشتنامە", callback_data='invite_link'),
+        types.InlineKeyboardButton("کۆرسەکان", callback_data='courses'),
+        types.InlineKeyboardButton("هەموو بۆتەکانم", callback_data='all_bots')
+    )
+    bot.send_photo(chat_id, photo_url, caption=caption, reply_markup=markup)
 
 # Start bot
 bot.polling()
