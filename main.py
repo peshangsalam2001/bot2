@@ -44,20 +44,16 @@ def coins(message):
 def get_course_menu(message):
     user_id = message.from_user.id
 
+    # تەنیا خاوەن بتوانێت ببینێ
     if user_id != OWNER_ID:
         bot.send_message(message.chat.id, "ببورە، تەنیا خاوەنی بۆت دەتوانێت کۆرسەکان ببینێ.")
         return
 
-    user_data = users.get(user_id, {"coins": 0})
-    if user_data["coins"] < required_coins:
-        bot.send_message(message.chat.id,
-                         f"پێویستە {required_coins} کۆینت هەبێت.\n"
-                         f"ئێستا کۆینەکانت: {user_data['coins']}")
-        return
-
+    # ڕاستەوخۆ لیست بنێرە
     markup = InlineKeyboardMarkup()
     for name in courses:
         markup.add(InlineKeyboardButton(text=name, callback_data=f"course:{name}"))
+
     bot.send_message(message.chat.id, "تکایە کۆرسێک هەڵبژێرە:", reply_markup=markup)
 
 # Callback: بۆ ناردنی لینکەکە
