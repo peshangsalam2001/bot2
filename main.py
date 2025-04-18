@@ -61,19 +61,16 @@ def get_course_menu(message):
 def send_course_link(call):
     course_name = call.data.split(":")[1]
     user_id = call.from_user.id
-    user_data = users.get(user_id, {"coins": 0})
-    
+
+    # تەنیا ڕێگە بە خاوەنی بۆت بدرێت
     if user_id != OWNER_ID:
         bot.send_message(call.message.chat.id, "تەنیا خاوەنی بۆت دەتوانێت لینکەکان ببینێ.")
         return
 
-    if user_data["coins"] >= required_coins:
-        link = courses.get(course_name)
-        bot.send_message(call.message.chat.id,
-                         f"ئەمە لینکی کۆرسی {course_name} ـە:\n{link}")
-    else:
-        bot.send_message(call.message.chat.id,
-                         f"کۆینی پێویستت نییە بۆ گرتنی کۆرسەکە.")
+    # ناردنی لینکەکە بەبێ هێچ پشکنین
+    link = courses.get(course_name)
+    bot.send_message(call.message.chat.id,
+                     f"ئەمە لینکی کۆرسی **{course_name}** ـە:\n{link}")
 
 # Referral handler
 @bot.message_handler(func=lambda message: message.text.startswith("/start ") and len(message.text.split()) == 2)
