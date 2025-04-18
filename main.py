@@ -3,7 +3,7 @@ from datetime import datetime
 import random
 
 # Replace with your bot token
-BOT_TOKEN = '7686120166:AAGnrPNFIHvgXdlL3G9inlouM3f7p7VZfkY'
+BOT_TOKEN = '7007340673:AAEhp1W1PhoUq_rOcssQVDIvq0OZVEXHARM'
 bot = telebot.TeleBot(BOT_TOKEN)
 
 # Sample tech tips
