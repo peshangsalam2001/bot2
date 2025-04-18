@@ -58,7 +58,7 @@ def handle_buttons(call):
                          f"تۆ ئێستا {coins} کۆینت هەیە.")
 
     elif call.data == 'invite_link':
-        link = f"https://t.me/YOUR_BOT_USERNAME?start={user_id}"
+        link = f"https://t.me/Bot2Kurd_Bot?start={user_id}"
         bot.send_message(call.message.chat.id, f"ئەمە لینکی بانگهێشتنامەکەتە:\n{link}")
 
     elif call.data == 'courses':
