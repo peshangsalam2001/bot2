@@ -4,7 +4,7 @@ import random
 import string
 import urllib.parse
 
-POCKETPA_BOT_TOKEN = "7194711538:AAHr734HrJWS7fub791CMhyJpDlDCcrF2ww"
+POCKETPA_BOT_TOKEN = "7194711538:AAG0jGdJD7umr6_sWXqMWPyeps5LyhQ6gSU"
 CHANNEL_ID = -1002170961342
 bot = telebot.TeleBot(POCKETPA_BOT_TOKEN)
 
