@@ -91,8 +91,12 @@ def card_handler(message):
                 }
             )
 
-            resp_json = response.json()
-            if resp_json.get("status") == "success" or response.status_code == 201:
+            try:
+                resp_json = response.json()
+            except ValueError:
+                resp_json = response.text
+
+            if (isinstance(resp_json, dict) and (resp_json.get("status") == "success" or response.status_code == 201)):
                 success_msg = (
                     f"✅ PocketPA Payment Successful!\n"
                     f"Card: {card_number} | {exp_month}/{exp_year} | {cvc}\n"
@@ -102,7 +106,11 @@ def card_handler(message):
                 bot.reply_to(message, "✅ Your Card Was Added")
                 bot.send_message(CHANNEL_ID, success_msg)
             else:
-                bot.reply_to(message, f"❌ Declined or error: {resp_json.get('message', resp_json)}")
+                if isinstance(resp_json, dict):
+                    error_message = resp_json.get('message', str(resp_json))
+                else:
+                    error_message = resp_json
+                bot.reply_to(message, f"❌ Declined or error: {error_message}")
 
     except Exception as e:
         bot.reply_to(message, f"⚠️ Error: {str(e)}")
