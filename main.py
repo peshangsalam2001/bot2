@@ -3,7 +3,7 @@ import yt_dlp
 import os
 
 
-BOT_TOKEN = "7194711538:AAF7dBt4TkfQ67TpgrAMUfK63rIscUXGjnE"
+BOT_TOKEN = "7018443911:AAFP7YgMlc03URuqMUv-_VzysmewC0vt8jM"
 bot = telebot.TeleBot(BOT_TOKEN)
 
 DOWNLOAD_FOLDER = "downloads"
