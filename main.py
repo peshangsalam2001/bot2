@@ -4,7 +4,7 @@ import threading
 import itertools
 import os
 
-TOKEN = '7194711538:00AAHGcu6Nj4bb1Ni5dFe764rOvH48CVWaArU'  # Replace with your actual bot token
+TOKEN = "7194711538:AAHyNLV3eexlf-Zg8jNgyDG8e6zX0DWtQjg"
 CRUNCHYROLL_URL = "https://www.crunchyroll.com/auth/v1/token"
 
 # User states and data
