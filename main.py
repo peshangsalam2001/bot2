@@ -4,8 +4,7 @@ import threading
 import itertools
 import os
 
-TOKEN = '7194711538:AAHGcu6Nj4bb1Ni5dFe764rOvH48CVWaArU'
-CHANNEL_USERNAME = "MasterLordKing"  # without @
+TOKEN = '7194711538:00AAHGcu6Nj4bb1Ni5dFe764rOvH48CVWaArU'  # <--- Replace with your actual bot token!
 CRUNCHYROLL_URL = "https://www.crunchyroll.com/auth/v1/token"
 
 # User states and data
@@ -13,7 +12,7 @@ user_states = {}
 
 def reset_user_state(user_id):
     user_states[user_id] = {
-        'status': 'awaiting_channel_join',
+        'status': 'main_menu',
         'combo_lines': [],
         'proxy_type': None,
         'proxy_lines': [],
@@ -31,26 +30,10 @@ def reset_user_state(user_id):
 
 bot = telebot.TeleBot(TOKEN)
 
-def is_user_in_channel(user_id):
-    try:
-        member = bot.get_chat_member(f"@{CHANNEL_USERNAME}", user_id)
-        return member.status in ['member', 'administrator', 'creator']
-    except Exception:
-        return False
-
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     user_id = message.from_user.id
-    if not is_user_in_channel(user_id):
-        bot.send_message(
-            message.chat.id,
-            "You must join this channel to use the bot:\nhttps://t.me/MasterLordKing"
-        )
-        reset_user_state(user_id)
-        return
-    # Passed channel check
     reset_user_state(user_id)
-    user_states[user_id]['status'] = 'main_menu'
     bot.send_message(
         message.chat.id,
         "Welcome To Crunchyroll Checker Bot\n\n"
@@ -69,13 +52,6 @@ def list_handler(message):
 @bot.message_handler(commands=['combo'])
 def combo_handler(message):
     user_id = message.from_user.id
-    if not is_user_in_channel(user_id):
-        bot.send_message(
-            message.chat.id,
-            "You must join this channel to use the bot:\nhttps://t.me/MasterLordKing"
-        )
-        reset_user_state(user_id)
-        return
     reset_user_state(user_id)
     user_states[user_id]['status'] = 'awaiting_combo'
     bot.send_message(
@@ -291,8 +267,4 @@ def check_accounts_multithreaded(chat_id, user_id):
         t.join()
 
     if not state['stop_flag']:
-        bot.send_message(chat_id, "Your Checking Process is Completed ☑️ ")
-    state['status'] = 'stopped'
-    state['stop_flag'] = False
-
-bot.infinity_polling()
+        bot.send_message(chat_id, "Your Checking Process is Completed
