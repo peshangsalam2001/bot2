@@ -60,50 +60,51 @@ def handle_text(message):
     if not is_member(message.from_user.id):
         bot.reply_to(message, "تکایە سەرەتا جۆینی کەناڵی @KurdishBots بکە و دواتر /start بنێرە.")
         return
+    
     if message.text.startswith('/'):
         bot.reply_to(message, "ببورە، تکایە /help بنێرە بۆ ئەوەی کۆماندی ڕاست و دروست بنێریت")
         return
+    
     if not is_youtube_url(message.text):
         bot.reply_to(message, "ببورە، تکایە دڵنیابەرەوە لە ڕاست و دروستی لینکەکە")
         return
 
-    # کوالیتیەکان
-    qualities = [
-        ("1080p", "1080"),
-        ("720p", "720"),
-        ("480p", "480"),
-        ("360p", "360"),
-        ("240p", "240"),
-        ("144p", "144"),
-    ]
-    markup = types.InlineKeyboardMarkup(row_width=2)
-    for q, qv in qualities:
-        markup.add(types.InlineKeyboardButton(q, callback_data=f'quality_{qv}_{message.text}'))
-    bot.reply_to(message, "تکایە بە چ کوالیتیەک دەتەوێ ڤیدیۆکە داونلۆدکەی هەڵیبژێرە", reply_markup=markup)
+    # ناردنی نامەی چاوەڕوانی
+    msg = bot.reply_to(message, "تکایە چاوەڕوانبە تا ڤیدیۆکەت بۆ داونلۆد دەکەم…")
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('quality_'))
-def handle_quality(call):
-    if not is_member(call.from_user.id):
-        bot.answer_callback_query(call.id, "تکایە سەرەتا جۆینی کەناڵی @KurdishBots بکە!")
-        return
-    _, quality, url = call.data.split('_', 2)
-    msg = bot.send_message(call.message.chat.id, "تکایە چاوەڕوانبە تا ڤیدیۆکەت بۆ داونلۆد دەکەم…")
+    # ڕێکخستنەکانی yt-dlp بۆ بەرزترین کوالیتی
     ydl_opts = {
-        'format': f'bestvideo[height={quality}]+bestaudio/best[height={quality}]',
-        'outtmpl': f'downloads/%(title)s_{quality}p.%(ext)s',
+        'format': 'bestvideo+bestaudio/best',
         'merge_output_format': 'mp4',
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
         'quiet': True,
     }
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            info = ydl.extract_info(message.text, download=True)
             file_path = ydl.prepare_filename(info)
-            with open(file_path, 'rb') as video:
-                bot.send_video(call.message.chat.id, video)
+            
+            # ناردنی ڤیدیۆکە
+            with open(file_path, 'rb') as video_file:
+                bot.send_video(
+                    chat_id=message.chat.id,
+                    video=video_file,
+                    caption=f"✅ ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}"
+                )
+            
+            # سڕینەوەی فایلەکە دوایی ناردن
             os.remove(file_path)
-        bot.delete_message(call.message.chat.id, msg.message_id)
-    except Exception:
-        bot.edit_message_text("ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو", call.message.chat.id, msg.message_id)
+            
+            # سڕینەوەی نامەی چاوەڕوانی
+            bot.delete_message(message.chat.id, msg.message_id)
+
+    except Exception as e:
+        bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=msg.message_id,
+            text="❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو"
+        )
 
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
