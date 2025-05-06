@@ -33,8 +33,8 @@ def main_markup():
     )
     return markup
 
-@bot.message_handler(commands=['start'])
-def start(message):
+@bot.message_handler(commands=['سەرەکی'])
+def seraki_command(message):
     if is_member(message.from_user.id):
         name = message.from_user.first_name
         text = f"سڵاو بەڕێز {name}، بەخێربێیت بۆ بۆتی داونلۆدکردنی ڤیدیۆ و کورتە ڤیدیۆی یوتوب بە بەرزترین کوالیتی و کەمترین کات 🚀"
@@ -43,12 +43,12 @@ def start(message):
         name = message.from_user.first_name
         bot.send_message(message.chat.id, f"ببورە بەڕێز {name}، سەرەتا پێویستە جۆینی کەناڵەکەمان بکەی:\n{CHANNEL}")
 
-@bot.message_handler(commands=['cmds'])
-def cmds(message):
-    if is_member(message.from_user.id):
-        bot.send_message(message.chat.id, "سەرەکی:", reply_markup=main_markup())
-    else:
-        start(message)
+@bot.message_handler(func=lambda message: message.text and message.text.startswith('/'))
+def other_commands(message):
+    # If command is not /سەرەکی, send the warning message
+    if message.text != '/سەرەکی':
+        bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە بۆ ئەوەی لیستی سەرەکیت نیشاندەم ⚠")
+    # else do nothing here (handled by seraki_command)
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
@@ -67,7 +67,7 @@ def handle_video(message):
         else:
             bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
     else:
-        start(message)
+        seraki_command(message)
 
 def handle_shorts(message):
     if is_member(message.from_user.id):
@@ -75,9 +75,9 @@ def handle_shorts(message):
             msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
             download_media(message.text, message.chat.id, msg.message_id, is_shorts=True)
         else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لەو لینکەی ناردووتە پاشان هەوڵبدەرەوە")
+            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان هەوڵبدەرەوە")
     else:
-        start(message)
+        seraki_command(message)
 
 def download_media(url, chat_id, msg_id, is_shorts=False):
     ydl_opts = {
@@ -85,14 +85,14 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'merge_output_format': 'mp4',
         'quiet': True,
-        'cookiefile': 'cookies.txt',  # <-- Use your exported cookies.txt here
+        'cookiefile': 'cookies.txt',  # Make sure cookies.txt is in the same folder
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
             with open(file_path, 'rb') as video_file:
-                caption = f"✅ کورتە ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}" if is_shorts else f"✅ ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}"
+                caption = f"✅ کورتە ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}" if is_shorts else f"✅ ڤیدیۆکەت بە سەرکەوتویی داونلۆدکرا!\n{info['title']}"
                 bot.send_video(chat_id, video_file, caption=caption)
             os.remove(file_path)
             bot.delete_message(chat_id, msg_id)
@@ -102,9 +102,9 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
 @bot.message_handler(func=lambda message: True)
 def other_messages(message):
     if is_member(message.from_user.id) and is_youtube_url(message.text):
-        bot.reply_to(message, "تکایە کۆماندی /cmds بنێرە بۆ بۆت تاکو بگەڕێیتەوە لیستی سەرەکی")
+        bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە بۆ ئەوەی لیستی سەرەکیت نیشاندەم ⚠")
     else:
-        start(message)
+        seraki_command(message)
 
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
