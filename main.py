@@ -43,11 +43,11 @@ def download_video(url, chat_id, msg_id, is_shorts=False):
             os.remove(file_path)
             bot.delete_message(chat_id, msg_id)
     except Exception as e:
-        bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=msg_id,
-            text="❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو"
-        )
+    bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=msg_id,
+        text=f"❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو\nهەڵە: {str(e)}"
+    )
 
 @bot.message_handler(commands=['start'])
 def start(message):
