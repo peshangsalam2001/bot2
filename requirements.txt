@@ -2,4 +2,3 @@ pyTelegramBotAPI
 telebot
 yt-dlp
 requests
-youtube_dl
