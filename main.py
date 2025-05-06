@@ -4,6 +4,7 @@ import telebot
 from telebot import types
 import yt_dlp
 
+# Replace with your actual bot token and channel username
 TOKEN = "7245300265:AAHEDoQVR2dzjvESBU2JS9t14aRUV2rhIrI"
 CHANNEL = "@KurdishBots"
 
@@ -27,11 +28,12 @@ def download_video(url, chat_id, msg_id, is_shorts=False):
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'merge_output_format': 'mp4',
-        'quiet': True,
         'postprocessors': [{
             'key': 'FFmpegVideoConvertor',
-            'preferedformat': 'mp4'
-        }]
+            'preferedformat': 'mp4',
+        }],
+        'quiet': False,
+        'verbose': True,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
