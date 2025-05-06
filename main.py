@@ -16,8 +16,37 @@ def is_member(user_id):
     except Exception:
         return False
 
-def is_youtube_url(url):
+def is_shorts_url(url):
+    return bool(re.match(r'^https?://(?:www\.)?youtube\.com/shorts/[^\s]+', url))
+
+def is_video_url(url):
     return bool(re.match(r'^https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[^\s]+', url))
+
+def download_video(url, chat_id, msg_id):
+    ydl_opts = {
+        'format': 'bestvideo+bestaudio/best',
+        'merge_output_format': 'mp4',
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'quiet': True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            file_path = ydl.prepare_filename(info)
+            with open(file_path, 'rb') as video_file:
+                bot.send_video(
+                    chat_id=chat_id,
+                    video=video_file,
+                    caption=f"✅ ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}"
+                )
+            os.remove(file_path)
+            bot.delete_message(chat_id, msg_id)
+    except Exception as e:
+        bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=msg_id,
+            text="❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو"
+        )
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -42,18 +71,27 @@ def help(message):
         reply_markup=markup
     )
 
-@bot.message_handler(commands=['video', 'shorts'])
-def video_or_shorts(message):
+@bot.message_handler(commands=['video'])
+def video(message):
     if not is_member(message.from_user.id):
         return
-    bot.reply_to(message, "بەڕێز تکایە لینکی ئەو ڤیدیۆیە بنێرە کە دەتەوێ داونلۆدی بکەی.")
+    bot.reply_to(message, "بەڕێز تکایە لینکی ئەو ڤیدیۆی یوتوب (نەک Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
+
+@bot.message_handler(commands=['shorts'])
+def shorts(message):
+    if not is_member(message.from_user.id):
+        return
+    bot.reply_to(message, "بەڕێز تکایە لینکی ئەو کورتە ڤیدیۆی یوتوب (Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
 
 @bot.callback_query_handler(func=lambda call: call.data in ['video', 'shorts'])
 def callback_handler(call):
     if not is_member(call.from_user.id):
         bot.answer_callback_query(call.id, "تکایە سەرەتا جۆینی کەناڵی @KurdishBots بکە و دواتر /start بنێرە.")
         return
-    bot.send_message(call.message.chat.id, "بەڕێز تکایە لینکی ئەو ڤیدیۆیە بنێرە کە دەتەوێ داونلۆدی بکەی.")
+    if call.data == 'video':
+        bot.send_message(call.message.chat.id, "بەڕێز تکایە لینکی ئەو ڤیدیۆی یوتوب (نەک Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
+    elif call.data == 'shorts':
+        bot.send_message(call.message.chat.id, "بەڕێز تکایە لینکی ئەو کورتە ڤیدیۆی یوتوب (Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
 
 @bot.message_handler(func=lambda m: True, content_types=['text'])
 def handle_text(message):
@@ -65,46 +103,22 @@ def handle_text(message):
         bot.reply_to(message, "ببورە، تکایە /help بنێرە بۆ ئەوەی کۆماندی ڕاست و دروست بنێریت")
         return
     
-    if not is_youtube_url(message.text):
-        bot.reply_to(message, "ببورە، تکایە دڵنیابەرەوە لە ڕاست و دروستی لینکەکە")
-        return
-
-    # ناردنی نامەی چاوەڕوانی
-    msg = bot.reply_to(message, "تکایە چاوەڕوانبە تا ڤیدیۆکەت بۆ داونلۆد دەکەم…")
-
-    # ڕێکخستنەکانی yt-dlp بۆ بەرزترین کوالیتی
-    ydl_opts = {
-        'format': 'bestvideo+bestaudio/best',
-        'merge_output_format': 'mp4',
-        'outtmpl': 'downloads/%(title)s.%(ext)s',
-        'quiet': True,
-    }
-
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(message.text, download=True)
-            file_path = ydl.prepare_filename(info)
-            
-            # ناردنی ڤیدیۆکە
-            with open(file_path, 'rb') as video_file:
-                bot.send_video(
-                    chat_id=message.chat.id,
-                    video=video_file,
-                    caption=f"✅ ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}"
-                )
-            
-            # سڕینەوەی فایلەکە دوایی ناردن
-            os.remove(file_path)
-            
-            # سڕینەوەی نامەی چاوەڕوانی
-            bot.delete_message(message.chat.id, msg.message_id)
-
-    except Exception as e:
-        bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=msg.message_id,
-            text="❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو"
-        )
+    # چاوەڕوانی لینک و تایبەتمەندی
+    if message.reply_to_message and message.reply_to_message.text.startswith("بەڕێز تکایە لینکی ئەو ڤیدیۆی یوتوب"):
+        if not is_video_url(message.text):
+            bot.reply_to(message, "ببورە، تکایە لینکی ڤیدیۆی یوتوب (نەک Shorts) بنێرە")
+            return
+        msg = bot.reply_to(message, "تکایە چاوەڕوانبە تا ڤیدیۆکەت بۆ داونلۆد دەکەم…")
+        download_video(message.text, message.chat.id, msg.message_id)
+    
+    elif message.reply_to_message and message.reply_to_message.text.startswith("بەڕێز تکایە لینکی ئەو کورتە ڤیدیۆی یوتوب"):
+        if not is_shorts_url(message.text):
+            bot.reply_to(message, "ببورە، تکایە لینکی کورتە ڤیدیۆی یوتوب (Shorts) بنێرە")
+            return
+        msg = bot.reply_to(message, "تکایە چاوەڕوانبە تا کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم…")
+        download_video(message.text, message.chat.id, msg.message_id)
+    else:
+        bot.reply_to(message, "تکایە لە ڕێگەی دووگمە یان کۆماندی تایبەتمەندیەکە لینکەکە بنێرە.")
 
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
