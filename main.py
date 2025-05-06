@@ -1,5 +1,6 @@
 import os
 import re
+import time
 import telebot
 from telebot import types
 import yt_dlp
@@ -9,6 +10,9 @@ CHANNEL = "@KurdishBots"
 ADMIN = "@MasterLordBoss"
 
 bot = telebot.TeleBot(TOKEN)
+
+# To track last download time per user (user_id: timestamp)
+user_last_download_time = {}
 
 def is_member(user_id):
     try:
@@ -25,8 +29,8 @@ def main_markup():
         types.InlineKeyboardButton("کەناڵی سەرەکی", url="https://t.me/KurdishBots")
     )
     markup.row(
-        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆ", callback_data='video'),
-        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆ", callback_data='shorts')
+        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆی یوتوب", callback_data='video'),
+        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆی یوتوب", callback_data='shorts')
     )
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
@@ -55,30 +59,45 @@ def other_commands(message):
 def callback_handler(call):
     if call.data == 'video':
         bot.send_message(call.message.chat.id, "تکایە لینکی ڤیدیۆکە بنێرە بۆ ئەوەی داونلۆدی بکەم بۆت 🎬")
-        bot.register_next_step_handler(call.message, handle_video)
     elif call.data == 'shorts':
         bot.send_message(call.message.chat.id, "تکایە لینکی کورتە ڤیدیۆکە بنێرە بۆ ئەوەی داونلۆدی بکەم بۆت ⏱️")
-        bot.register_next_step_handler(call.message, handle_shorts)
 
-def handle_video(message):
-    if is_member(message.from_user.id):
-        if is_youtube_url(message.text):
-            msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
-            download_media(message.text, message.chat.id, msg.message_id)
+@bot.message_handler(func=lambda message: True)
+def handle_all_messages(message):
+    user_id = message.from_user.id
+    text = message.text.strip() if message.text else ""
+
+    if is_youtube_url(text):
+        if not is_member(user_id):
+            bot.reply_to(message, f"ببورە بەڕێز، پێویستە سەرەتا جۆینی کەناڵەکەمان بکەیت:\n{CHANNEL}")
+            return
+
+        now = time.time()
+        last_time = user_last_download_time.get(user_id, 0)
+        elapsed = now - last_time
+
+        if elapsed < 15:
+            bot.reply_to(message, "تکایە ١٥ چرکە چاوەڕوانبە پاشان لینکێکی نوێ بنێرە 🚫")
+            return
+
+        user_last_download_time[user_id] = now
+
+        # Decide if it's shorts or normal video by URL pattern
+        if re.match(r'^https?://(?:www\.)?youtube\.com/shorts/', text):
+            download_shorts(message)
         else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
+            download_video(message)
     else:
+        # For non-YouTube links or texts, show welcome message
         send_welcome(message)
 
-def handle_shorts(message):
-    if is_member(message.from_user.id):
-        if is_youtube_url(message.text):
-            msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
-            download_media(message.text, message.chat.id, msg.message_id, is_shorts=True)
-        else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە ڕاست و دروستی لینکەکەت پاشان هەوڵبدەرەوە")
-    else:
-        send_welcome(message)
+def download_video(message):
+    msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
+    download_media(message.text, message.chat.id, msg.message_id, is_shorts=False)
+
+def download_shorts(message):
+    msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
+    download_media(message.text, message.chat.id, msg.message_id, is_shorts=True)
 
 def download_media(url, chat_id, msg_id, is_shorts=False):
     ydl_opts = {
@@ -99,13 +118,6 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
             bot.delete_message(chat_id, msg_id)
     except Exception as e:
         bot.edit_message_text(f"❌ هەڵە: {str(e)}", chat_id, msg_id)
-
-@bot.message_handler(func=lambda message: True)
-def other_messages(message):
-    if is_member(message.from_user.id) and is_youtube_url(message.text):
-        bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە بۆ ئەوەی لیستی سەرەکیت نیشاندەم ⚠")
-    else:
-        send_welcome(message)
 
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
