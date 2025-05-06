@@ -25,16 +25,15 @@ def main_markup():
         types.InlineKeyboardButton("کەناڵی سەرەکی", url="https://t.me/KurdishBots")
     )
     markup.row(
-        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆ", callback_data='video'),
-        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆ", callback_data='shorts')
+        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆی یوتوب", callback_data='video'),
+        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆی یوتوب", callback_data='shorts')
     )
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
     )
     return markup
 
-@bot.message_handler(commands=['سەرەکی'])
-def seraki_command(message):
+def send_welcome(message):
     if is_member(message.from_user.id):
         name = message.from_user.first_name
         text = f"سڵاو بەڕێز {name}، بەخێربێیت بۆ بۆتی داونلۆدکردنی ڤیدیۆ و کورتە ڤیدیۆی یوتوب بە بەرزترین کوالیتی و کەمترین کات 🚀"
@@ -43,12 +42,14 @@ def seraki_command(message):
         name = message.from_user.first_name
         bot.send_message(message.chat.id, f"ببورە بەڕێز {name}، سەرەتا پێویستە جۆینی کەناڵەکەمان بکەی:\n{CHANNEL}")
 
+@bot.message_handler(commands=['start', 'سەرەکی'])
+def start_or_seraki(message):
+    send_welcome(message)
+
 @bot.message_handler(func=lambda message: message.text and message.text.startswith('/'))
 def other_commands(message):
-    # If command is not /سەرەکی, send the warning message
-    if message.text != '/سەرەکی':
+    if message.text not in ['/start', '/سەرەکی']:
         bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە بۆ ئەوەی لیستی سەرەکیت نیشاندەم ⚠")
-    # else do nothing here (handled by seraki_command)
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
@@ -67,7 +68,7 @@ def handle_video(message):
         else:
             bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
     else:
-        seraki_command(message)
+        send_welcome(message)
 
 def handle_shorts(message):
     if is_member(message.from_user.id):
@@ -75,9 +76,9 @@ def handle_shorts(message):
             msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
             download_media(message.text, message.chat.id, msg.message_id, is_shorts=True)
         else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان هەوڵبدەرەوە")
+            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
     else:
-        seraki_command(message)
+        send_welcome(message)
 
 def download_media(url, chat_id, msg_id, is_shorts=False):
     ydl_opts = {
@@ -104,7 +105,7 @@ def other_messages(message):
     if is_member(message.from_user.id) and is_youtube_url(message.text):
         bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە بۆ ئەوەی لیستی سەرەکیت نیشاندەم ⚠")
     else:
-        seraki_command(message)
+        send_welcome(message)
 
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
