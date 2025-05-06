@@ -2,8 +2,9 @@ import os
 import re
 import telebot
 from telebot import types
-import youtube_dl
+import yt_dlp
 
+# 🛠️ Replace with your own values
 TOKEN = "7245300265:AAHEDoQVR2dzjvESBU2JS9t14aRUV2rhIrI"
 CHANNEL = "@KurdishBots"
 
@@ -30,15 +31,16 @@ def download_video(url, chat_id, msg_id, is_shorts=False):
         'quiet': True,
     }
     try:
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
             with open(file_path, 'rb') as video_file:
-                caption = f"✅ کورتە ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}" if is_shorts else f"✅ ڤیدیۆکەت بە سەرکەوتوویی داونلۆدکرا!\n{info['title']}"
+                caption = f"✅ Shorts video downloaded successfully!\n{info['title']}" if is_shorts else f"✅ Video downloaded successfully!\n{info['title']}"
                 bot.send_video(
                     chat_id=chat_id,
                     video=video_file,
-                    caption=caption
+                    caption=caption,
+                    supports_streaming=True
                 )
             os.remove(file_path)
             bot.delete_message(chat_id, msg_id)
@@ -46,29 +48,29 @@ def download_video(url, chat_id, msg_id, is_shorts=False):
         bot.edit_message_text(
             chat_id=chat_id,
             message_id=msg_id,
-            text=f"❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو\n\nهۆکار: {str(e)}"
+            text=f"❌ Sorry, download failed.\nReason: {str(e)}"
         )
 
 @bot.message_handler(commands=['start'])
 def start(message):
     if not is_member(message.from_user.id):
-        bot.reply_to(message, "تکایە سەرەتا جۆینی کەناڵی @KurdishBots بکە و دواتر /start بنێرە.")
+        bot.reply_to(message, f"Please join {CHANNEL} first, then send /start again.")
         return
     bot.reply_to(
         message,
-        f"سڵاو بەڕێز {message.from_user.first_name}\nبەخێربێت بۆ بۆتی داونلۆدکردنی ڤیدیۆ و کورتە ڤیدیۆی یوتوب\n\nبۆ بینینی سەرجەم تایبەتمەندی کۆماندەکانی بۆتەکە تکایە /help بنێرە بۆ بۆتەکە"
+        f"Hello {message.from_user.first_name}!\nWelcome to the YouTube Video Downloader Bot.\n\nUse /help to see all commands."
     )
 
 @bot.message_handler(commands=['help'])
 def help(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(
-        types.InlineKeyboardButton("ڤیدیۆ", callback_data='video'),
-        types.InlineKeyboardButton("کورتە ڤیدیۆ", callback_data='shorts')
+        types.InlineKeyboardButton("Video", callback_data='video'),
+        types.InlineKeyboardButton("Shorts", callback_data='shorts')
     )
     bot.reply_to(
         message,
-        "بۆ داونلۆدکردنی ڤیدیۆی یوتوب تمایە کلیک لە دوگمەی ڤیدیۆ بدە یاخود کۆماندی /video بنێرە بۆ بۆتەکە\n\nبۆ داونلۆدکردنی کورتە ڤیدیۆی یوتوب تمایە کلیک لە دوگمەی کورتە ڤیدیۆ بدە یاخود کۆماندی /shorts بنێرە بۆ بۆتەکە",
+        "To download a YouTube video, click the 'Video' button or send /video.\n\nTo download a YouTube Shorts video, click the 'Shorts' button or send /shorts.",
         reply_markup=markup
     )
 
@@ -76,44 +78,44 @@ def help(message):
 def video(message):
     if not is_member(message.from_user.id):
         return
-    bot.reply_to(message, "بەڕێز تکایە لینکی ئەو ڤیدیۆی یوتوب (نەک Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
+    bot.reply_to(message, "Please send the YouTube video link (not Shorts).")
     bot.register_next_step_handler(message, handle_video)
 
 @bot.message_handler(commands=['shorts'])
 def shorts(message):
     if not is_member(message.from_user.id):
         return
-    bot.reply_to(message, "بەڕێز تکایە لینکی ئەو کورتە ڤیدیۆی یوتوب (Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
+    bot.reply_to(message, "Please send the YouTube Shorts link.")
     bot.register_next_step_handler(message, handle_shorts)
 
 @bot.callback_query_handler(func=lambda call: call.data in ['video', 'shorts'])
 def callback_handler(call):
     if not is_member(call.from_user.id):
-        bot.answer_callback_query(call.id, "تکایە سەرەتا جۆینی کەناڵی @KurdishBots بکە و دواتر /start بنێرە.")
+        bot.answer_callback_query(call.id, f"Please join {CHANNEL} first, then try again.")
         return
     if call.data == 'video':
-        bot.send_message(call.message.chat.id, "بەڕێز تکایە لینکی ئەو ڤیدیۆی یوتوب (نەک Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
+        bot.send_message(call.message.chat.id, "Please send the YouTube video link (not Shorts).")
         bot.register_next_step_handler(call.message, handle_video)
     elif call.data == 'shorts':
-        bot.send_message(call.message.chat.id, "بەڕێز تکایە لینکی ئەو کورتە ڤیدیۆی یوتوب (Shorts) بنێرە کە دەتەوێ داونلۆدی بکەی.")
+        bot.send_message(call.message.chat.id, "Please send the YouTube Shorts link.")
         bot.register_next_step_handler(call.message, handle_shorts)
 
 def handle_video(message):
     if not is_member(message.from_user.id):
         return
     if not is_video_url(message.text):
-        bot.reply_to(message, "ببورە، تکایە لینکی ڤیدیۆی یوتوب (نەک Shorts) بنێرە")
+        bot.reply_to(message, "Please send a valid YouTube video link (not Shorts).")
         return
-    msg = bot.reply_to(message, "تکایە چاوەڕوانبە تا ڤیدیۆکەت بۆ داونلۆد دەکەم…")
+    msg = bot.reply_to(message, "Please wait, downloading your video...")
     download_video(message.text, message.chat.id, msg.message_id, is_shorts=False)
 
 def handle_shorts(message):
     if not is_member(message.from_user.id):
         return
     if not is_shorts_url(message.text):
-        bot.reply_to(message, "ببورە، تکایە لینکی کورتە ڤیدیۆی یوتوب (Shorts) بنێرە")
+        bot.reply_to(message, "Please send a valid YouTube Shorts link.")
         return
-    msg = bot.reply_to(message, "تکایە چاوەڕوانبە تا کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم…")
+    msg = bot.reply_to(message, "Please wait, downloading your Shorts video...")
     download_video(message.text, message.chat.id, msg.message_id, is_shorts=True)
 
 if __name__ == '__main__':
