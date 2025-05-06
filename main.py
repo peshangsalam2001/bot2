@@ -25,8 +25,8 @@ def main_markup():
         types.InlineKeyboardButton("کەناڵی سەرەکی", url="https://t.me/KurdishBots")
     )
     markup.row(
-        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆی یوتوب", callback_data='video'),
-        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆی یوتوب", callback_data='shorts')
+        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆ", callback_data='video'),
+        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆ", callback_data='shorts')
     )
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
@@ -76,7 +76,7 @@ def handle_shorts(message):
             msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو کورتە ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
             download_media(message.text, message.chat.id, msg.message_id, is_shorts=True)
         else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
+            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە ڕاست و دروستی لینکەکەت پاشان هەوڵبدەرەوە")
     else:
         send_welcome(message)
 
