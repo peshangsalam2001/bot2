@@ -29,8 +29,8 @@ def main_markup():
         types.InlineKeyboardButton("کەناڵی سەرەکی", url="https://t.me/KurdishBots")
     )
     markup.row(
-        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆی یوتوب", callback_data='video'),
-        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆی یوتوب", callback_data='shorts')
+        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆ", callback_data='video'),
+        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆ", callback_data='shorts')
     )
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
