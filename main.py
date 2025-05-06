@@ -4,7 +4,7 @@ import telebot
 from telebot import types
 import youtube_dl
 
-TOKEN = "7245300265:AAHEDoQVR2dzjvESBU2JS9t14aR2345rhIrI"
+TOKEN = "7245300265:AAHEDoQVR2dzjvESBU2JS9t14aRUV2rhIrI"
 CHANNEL = "@KurdishBots"
 
 bot = telebot.TeleBot(TOKEN)
