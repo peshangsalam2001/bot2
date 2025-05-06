@@ -28,8 +28,8 @@ def main_markup():
         types.InlineKeyboardButton("کەناڵی سەرەکی", url="https://t.me/KurdishBots")
     )
     markup.row(
-        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆی یوتوب", callback_data='video'),
-        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆی یوتوب", callback_data='shorts')
+        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆ", callback_data='video'),
+        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆ", callback_data='shorts')
     )
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
@@ -48,7 +48,7 @@ def start(message):
         bot.send_message(message.chat.id, f"ببورە بەڕێز {name}، سەرەتا پێویستە جۆینی کەناڵەکەمان بکەی:\n{CHANNEL}")
 
 # /cmds
-@bot.message_handler(commands=['cmds'])
+@bot.message_handler(commands=['سەرەکی'])
 def cmds(message):
     if is_member(message.from_user.id):
         bot.send_message(message.chat.id, "سەرەکی:", reply_markup=main_markup())
@@ -72,7 +72,7 @@ def handle_video(message):
             msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
             download_media(message.text, message.chat.id, msg.message_id)
         else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
+            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە ڕاست و دروستی لینکەکەت پاشان هەوڵبدەرەوە")
     else:
         start(message)
 
@@ -111,7 +111,7 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
 @bot.message_handler(func=lambda message: True)
 def other_messages(message):
     if is_member(message.from_user.id) and is_youtube_url(message.text):
-        bot.reply_to(message, "تکایە کۆماندی /cmds بنێرە بۆ بۆت تاکو بگەڕێیتەوە لیستی سەرەکی")
+        bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە تاکو بگەڕێیتەوە لیستی سەرەکی")
     else:
         start(message)
 
