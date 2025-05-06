@@ -10,33 +10,29 @@ ADMIN = "@MasterLordBoss"
 
 bot = telebot.TeleBot(TOKEN)
 
-# پشکنینی ئەندامی کەناڵ
 def is_member(user_id):
     try:
         return bot.get_chat_member(CHANNEL, user_id).status in ['member', 'administrator', 'creator']
     except:
         return False
 
-# پشکنینی لینکی یوتوب
 def is_youtube_url(url):
     return re.match(r'^(https?\:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+', url)
 
-# دروستکردنی دوگمەکان
 def main_markup():
     markup = types.InlineKeyboardMarkup()
     markup.row(
         types.InlineKeyboardButton("کەناڵی سەرەکی", url="https://t.me/KurdishBots")
     )
     markup.row(
-        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆ", callback_data='video'),
-        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆ", callback_data='shorts')
+        types.InlineKeyboardButton("دابەزاندنی ڤیدیۆی یوتوب", callback_data='video'),
+        types.InlineKeyboardButton("دابەزاندنی کورتە ڤیدیۆی یوتوب", callback_data='shorts')
     )
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
     )
     return markup
 
-# /start
 @bot.message_handler(commands=['start'])
 def start(message):
     if is_member(message.from_user.id):
@@ -47,15 +43,13 @@ def start(message):
         name = message.from_user.first_name
         bot.send_message(message.chat.id, f"ببورە بەڕێز {name}، سەرەتا پێویستە جۆینی کەناڵەکەمان بکەی:\n{CHANNEL}")
 
-# /cmds
-@bot.message_handler(commands=['سەرەکی'])
+@bot.message_handler(commands=['cmds'])
 def cmds(message):
     if is_member(message.from_user.id):
         bot.send_message(message.chat.id, "سەرەکی:", reply_markup=main_markup())
     else:
         start(message)
 
-# CallbackQueryHandler
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
     if call.data == 'video':
@@ -65,18 +59,16 @@ def callback_handler(call):
         bot.send_message(call.message.chat.id, "تکایە لینکی کورتە ڤیدیۆکە بنێرە بۆ ئەوەی داونلۆدی بکەم بۆت ⏱️")
         bot.register_next_step_handler(call.message, handle_shorts)
 
-# چارەسەری ڤیدیۆ
 def handle_video(message):
     if is_member(message.from_user.id):
         if is_youtube_url(message.text):
             msg = bot.reply_to(message, "لینکەکە وەرگیرا تکایە چاوەڕوانبە تاکوو ڤیدیۆکەت بۆ داونلۆد دەکەم ⌛")
             download_media(message.text, message.chat.id, msg.message_id)
         else:
-            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە ڕاست و دروستی لینکەکەت پاشان هەوڵبدەرەوە")
+            bot.reply_to(message, "ببورە❌ تکایە دڵنیابەرەوە لە لینکەکەت پاشان لینکەکەم بۆ بنێرەوە")
     else:
         start(message)
 
-# چارەسەری کورتە ڤیدیۆ
 def handle_shorts(message):
     if is_member(message.from_user.id):
         if is_youtube_url(message.text):
@@ -87,13 +79,13 @@ def handle_shorts(message):
     else:
         start(message)
 
-# دابەزاندنی ڤیدیۆ
 def download_media(url, chat_id, msg_id, is_shorts=False):
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'merge_output_format': 'mp4',
         'quiet': True,
+        'cookiefile': 'cookies.txt',  # <-- Use your exported cookies.txt here
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -107,11 +99,10 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
     except Exception as e:
         bot.edit_message_text(f"❌ هەڵە: {str(e)}", chat_id, msg_id)
 
-# پەیامەکانی تر
 @bot.message_handler(func=lambda message: True)
 def other_messages(message):
     if is_member(message.from_user.id) and is_youtube_url(message.text):
-        bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە تاکو بگەڕێیتەوە لیستی سەرەکی")
+        bot.reply_to(message, "تکایە کۆماندی /cmds بنێرە بۆ بۆت تاکو بگەڕێیتەوە لیستی سەرەکی")
     else:
         start(message)
 
