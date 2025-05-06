@@ -2,9 +2,9 @@ import os
 import re
 import telebot
 from telebot import types
-import yt_dlp
+import youtube_dl
 
-TOKEN = "7245300265:AAHEDoQVR2dzjvESBU2JS9t14aRUV2rhIrI"
+TOKEN = "7245300265:AAHEDoQVR2dzjvESBU2JS9t14aR2345rhIrI"
 CHANNEL = "@KurdishBots"
 
 bot = telebot.TeleBot(TOKEN)
@@ -25,12 +25,12 @@ def is_video_url(url):
 def download_video(url, chat_id, msg_id, is_shorts=False):
     ydl_opts = {
         'format': 'bestvideo+bestaudio/best',
-        'merge_output_format': 'mp4',
         'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'merge_output_format': 'mp4',
         'quiet': True,
     }
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             file_path = ydl.prepare_filename(info)
             with open(file_path, 'rb') as video_file:
@@ -43,11 +43,11 @@ def download_video(url, chat_id, msg_id, is_shorts=False):
             os.remove(file_path)
             bot.delete_message(chat_id, msg_id)
     except Exception as e:
-    bot.edit_message_text(
-        chat_id=chat_id,
-        message_id=msg_id,
-        text=f"❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو\nهەڵە: {str(e)}"
-    )
+        bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=msg_id,
+            text=f"❌ ببورە داونلۆدکردنەکە سەرکەوتوو نەبوو\n\nهۆکار: {str(e)}"
+        )
 
 @bot.message_handler(commands=['start'])
 def start(message):
