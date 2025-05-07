@@ -1,7 +1,6 @@
 import os
 import re
 import time
-import threading
 import requests
 import telebot
 from telebot import types
@@ -10,6 +9,7 @@ import yt_dlp
 TOKEN = "8136969513:AAGkfHTKjxZJa9nvANKHUHW1LutPP3wDBCQ"
 CHANNEL = "@KurdishBots"
 ADMIN = "@MasterLordBoss"
+OWNER_USERNAME = "MasterLordBoss"  # without @
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -22,8 +22,8 @@ stats = {
     'valid_links': 0,
 }
 
-# Replace this with your GitHub raw URL to the tutorial video
-TUTORIAL_VIDEO_URL = "https://github.com/peshangsalam2001/bot2/blob/main/IMG_4141.MP4"
+# Tutorial video direct link
+TUTORIAL_VIDEO_URL = "https://media-hosting.imagekit.io/a031c091769643da/IMG_4141%20(1).MP4?Expires=1841246907&Key-Pair-Id=K2ZIVPTIP2VGHC&Signature=z6BkaPkTwhTwjl-QZw6VNroAuS7zbxxIboZclk8Ww1GTQpxK~M-03JNLXt5Ml6pReIyvxJGGKBGX60~uGI2S5Tev3QtMHz3hIa7iPTQIrfv1p32oTvwyycnFfvecpFAofB-4qGSvZ5YsynhnrpUJT-fH25ROpkGnj9xMo87KWlrd6E1G9sWP5PNwpnLkRMkoh2uZLyWA935JPLX0bJMRGdovqmrORlp7XvxoOom2vHg2zydq1JSDVDlbxGFsM3guN8GWSPSM-pfOymZfJY-r~ajDT8sD~fjDCUwji~zW~LCqLTYdwHhglJXmtOStjsmeXqn4JOU2Q85LtIM~LHRTgA__"
 
 def is_member(user_id):
     try:
@@ -66,9 +66,25 @@ def send_welcome(message):
 def start_or_seraki(message):
     send_welcome(message)
 
+@bot.message_handler(commands=['stats'])
+def stats_command(message):
+    # Only allow the owner to use this command
+    if message.from_user.username == OWNER_USERNAME:
+        user_count = len(stats['users_started'])
+        valid_links = stats['valid_links']
+        text = (
+            f"📊 نوێترین زانیاری بۆت:\n"
+            f"👥 ژمارەی بەکارهێنەران: {user_count}\n"
+            f"🎬 ژمارەی لینکی ڤیدیۆی دروست داواکراوە: {valid_links}\n"
+            f"⏰ کاتی داواکاری: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}"
+        )
+        bot.reply_to(message, text)
+    else:
+        bot.reply_to(message, "فەرمانەکە تەنها بۆ خاوەنی بۆتە.")
+
 @bot.message_handler(func=lambda message: message.text and message.text.startswith('/'))
 def other_commands(message):
-    if message.text not in ['/start', '/سەرەکی']:
+    if message.text not in ['/start', '/سەرەکی', '/stats']:
         bot.reply_to(message, "تکایە کۆماندی /سەرەکی بنێرە بۆ ئەوەی لیستی سەرەکیت نیشاندەم ⚠")
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -80,7 +96,6 @@ def callback_handler(call):
     elif call.data == 'howto':
         caption = "ئەم ڤیدیۆیە فێرکاری چۆنیەتی بەکارهێنانی بۆتەکەیە ✅"
         try:
-            # Download video temporarily
             video_data = download_video_from_url(TUTORIAL_VIDEO_URL)
             if video_data:
                 bot.send_video(call.message.chat.id, video_data, caption=caption)
@@ -90,12 +105,9 @@ def callback_handler(call):
             bot.send_message(call.message.chat.id, f"❌ هەڵە لە ناردنی ڤیدیۆ: {str(e)}")
 
 def download_video_from_url(url):
-    """
-    Downloads video from URL and returns a BytesIO object for sending.
-    """
     import io
     try:
-        response = requests.get(url, stream=True, timeout=30)
+        response = requests.get(url, stream=True, timeout=60)
         response.raise_for_status()
         video_bytes = io.BytesIO(response.content)
         video_bytes.name = "tutorial_video.mp4"  # Telegram needs a filename attribute
@@ -162,32 +174,7 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
     except Exception as e:
         bot.edit_message_text(f"❌ هەڵە: {str(e)}", chat_id, msg_id)
 
-def send_daily_stats():
-    while True:
-        try:
-            time.sleep(24 * 3600)  # Sleep 24 hours
-            user_count = len(stats['users_started'])
-            valid_links = stats['valid_links']
-            text = (
-                f"📊 آماری بۆتی داونلۆدکرا:\n"
-                f"👥 ژمارەی بەکارهێنەرانی کە بۆت دەستپێکردووە: {user_count}\n"
-                f"🎬 ژمارەی لینکی ڤیدیۆی دروست داواکراوە: {valid_links}\n"
-                f"⏰ کاتی ناردنی ئەم پەیامە: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}"
-            )
-            # Send stats to ADMIN username
-            try:
-                bot.send_message(ADMIN, text)
-            except Exception as e:
-                print(f"Error sending stats to admin: {e}")
-        except Exception as e:
-            print(f"Error in daily stats thread: {e}")
-
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
         os.makedirs('downloads')
-
-    # Start the daily stats thread in daemon mode so it won't block exit
-    stats_thread = threading.Thread(target=send_daily_stats, daemon=True)
-    stats_thread.start()
-
     bot.infinity_polling()
