@@ -1,6 +1,8 @@
 import os
 import re
 import time
+import threading
+import requests
 import telebot
 from telebot import types
 import yt_dlp
@@ -11,13 +13,22 @@ ADMIN = "@MasterLordBoss"
 
 bot = telebot.TeleBot(TOKEN)
 
-# To track last download time per user (user_id: timestamp)
+# Track last download time per user (user_id: timestamp)
 user_last_download_time = {}
+
+# Track stats
+stats = {
+    'users_started': set(),  # store user IDs who started the bot
+    'valid_links': 0,
+}
+
+# Replace this with your GitHub raw URL to the tutorial video
+TUTORIAL_VIDEO_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main/tutorial_video.mp4"
 
 def is_member(user_id):
     try:
         return bot.get_chat_member(CHANNEL, user_id).status in ['member', 'administrator', 'creator']
-    except:
+    except Exception:
         return False
 
 def is_youtube_url(url):
@@ -35,10 +46,15 @@ def main_markup():
     markup.row(
         types.InlineKeyboardButton("پەیوەندیم پێوەبکە", url=f"https://t.me/{ADMIN[1:]}")
     )
+    markup.row(
+        types.InlineKeyboardButton("چۆنیاتی بەکارهێنانی بۆتەکە", callback_data='howto')
+    )
     return markup
 
 def send_welcome(message):
-    if is_member(message.from_user.id):
+    user_id = message.from_user.id
+    stats['users_started'].add(user_id)  # Track user started bot
+    if is_member(user_id):
         name = message.from_user.first_name
         text = f"سڵاو بەڕێز {name}، بەخێربێیت بۆ بۆتی داونلۆدکردنی ڤیدیۆ و کورتە ڤیدیۆی یوتوب بە بەرزترین کوالیتی و کەمترین کات 🚀"
         bot.send_message(message.chat.id, text, reply_markup=main_markup())
@@ -61,6 +77,32 @@ def callback_handler(call):
         bot.send_message(call.message.chat.id, "تکایە لینکی ڤیدیۆکە بنێرە بۆ ئەوەی داونلۆدی بکەم بۆت 🎬")
     elif call.data == 'shorts':
         bot.send_message(call.message.chat.id, "تکایە لینکی کورتە ڤیدیۆکە بنێرە بۆ ئەوەی داونلۆدی بکەم بۆت ⏱️")
+    elif call.data == 'howto':
+        caption = "ئەم ڤیدیۆیە فێرکاری چۆنیەتی بەکارهێنانی بۆتەکەیە ✅"
+        try:
+            # Download video temporarily
+            video_data = download_video_from_url(https://github.com/peshangsalam2001/bot2/blob/main/IMG_4141.MP4)
+            if video_data:
+                bot.send_video(call.message.chat.id, video_data, caption=caption)
+            else:
+                bot.send_message(call.message.chat.id, "❌ نەتوانرا ڤیدیۆکە باربکەم، تکایە دووبارە هەوڵ بدە.")
+        except Exception as e:
+            bot.send_message(call.message.chat.id, f"❌ هەڵە لە ناردنی ڤیدیۆ: {str(e)}")
+
+def download_video_from_url(url):
+    """
+    Downloads video from URL and returns a BytesIO object for sending.
+    """
+    import io
+    try:
+        response = requests.get(url, stream=True, timeout=30)
+        response.raise_for_status()
+        video_bytes = io.BytesIO(response.content)
+        video_bytes.name = "tutorial_video.mp4"  # Telegram needs a filename attribute
+        return video_bytes
+    except Exception as e:
+        print(f"Error downloading tutorial video: {e}")
+        return None
 
 @bot.message_handler(func=lambda message: True)
 def handle_all_messages(message):
@@ -81,6 +123,7 @@ def handle_all_messages(message):
             return
 
         user_last_download_time[user_id] = now
+        stats['valid_links'] += 1  # Count valid YouTube links processed
 
         # Decide if it's shorts or normal video by URL pattern
         if re.match(r'^https?://(?:www\.)?youtube\.com/shorts/', text):
@@ -105,7 +148,7 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'merge_output_format': 'mp4',
         'quiet': True,
-        'cookiefile': 'cookies.txt',  # Make sure cookies.txt is in the same folder
+        'cookiefile': 'cookies.txt',  # Make sure cookies.txt is in the same folder if needed
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -119,7 +162,32 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
     except Exception as e:
         bot.edit_message_text(f"❌ هەڵە: {str(e)}", chat_id, msg_id)
 
+def send_daily_stats():
+    while True:
+        try:
+            time.sleep(24 * 3600)  # Sleep 24 hours
+            user_count = len(stats['users_started'])
+            valid_links = stats['valid_links']
+            text = (
+                f"📊 آماری بۆتی داونلۆدکرا:\n"
+                f"👥 ژمارەی بەکارهێنەرانی کە بۆت دەستپێکردووە: {user_count}\n"
+                f"🎬 ژمارەی لینکی ڤیدیۆی دروست داواکراوە: {valid_links}\n"
+                f"⏰ کاتی ناردنی ئەم پەیامە: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}"
+            )
+            # Send stats to ADMIN username
+            try:
+                bot.send_message(ADMIN, text)
+            except Exception as e:
+                print(f"Error sending stats to admin: {e}")
+        except Exception as e:
+            print(f"Error in daily stats thread: {e}")
+
 if __name__ == '__main__':
     if not os.path.exists('downloads'):
         os.makedirs('downloads')
+
+    # Start the daily stats thread in daemon mode so it won't block exit
+    stats_thread = threading.Thread(target=send_daily_stats, daemon=True)
+    stats_thread.start()
+
     bot.infinity_polling()
