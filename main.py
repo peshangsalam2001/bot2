@@ -9,7 +9,7 @@ import yt_dlp
 TOKEN = "8136969513:AAGkfHTKjxZJa9nvANKHUHW1LutPP3wDBCQ"
 CHANNEL = "@KurdishBots"
 ADMIN = "@MasterLordBoss"
-OWNER_USERNAME = "MasterLordBoss"  # without @
+OWNER_USERNAME = "MasterLordBoss"  # بێ @
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -18,7 +18,7 @@ user_last_download_time = {}
 
 # Track stats
 stats = {
-    'users_started': set(),  # store user IDs who started the bot
+    'users_started': set(),  # یەکتا: user_id لە کۆمەڵەی set بۆ بەکارهێنەران
     'valid_links': 0,
 }
 
@@ -53,7 +53,9 @@ def main_markup():
 
 def send_welcome(message):
     user_id = message.from_user.id
-    stats['users_started'].add(user_id)  # Track user started bot
+    # تەنها ئەگەر بەکارهێنەر نوێ بێت زیاد دەکەین
+    if user_id not in stats['users_started']:
+        stats['users_started'].add(user_id)
     if is_member(user_id):
         name = message.from_user.first_name
         text = f"سڵاو بەڕێز {name}، بەخێربێیت بۆ بۆتی داونلۆدکردنی ڤیدیۆ و کورتە ڤیدیۆی یوتوب بە بەرزترین کوالیتی و کەمترین کات 🚀"
@@ -68,7 +70,7 @@ def start_or_seraki(message):
 
 @bot.message_handler(commands=['stats'])
 def stats_command(message):
-    # Only allow the owner to use this command
+    # تەنها بۆ خاوەنی بۆتە
     if message.from_user.username == OWNER_USERNAME:
         user_count = len(stats['users_started'])
         valid_links = stats['valid_links']
@@ -110,7 +112,7 @@ def download_video_from_url(url):
         response = requests.get(url, stream=True, timeout=60)
         response.raise_for_status()
         video_bytes = io.BytesIO(response.content)
-        video_bytes.name = "tutorial_video.mp4"  # Telegram needs a filename attribute
+        video_bytes.name = "tutorial_video.mp4"  # Telegram requires name attribute
         return video_bytes
     except Exception as e:
         print(f"Error downloading tutorial video: {e}")
@@ -135,15 +137,14 @@ def handle_all_messages(message):
             return
 
         user_last_download_time[user_id] = now
-        stats['valid_links'] += 1  # Count valid YouTube links processed
+        stats['valid_links'] += 1  # ژمارەی لینکی ڤیدیۆی دروست زیاد دەکەین
 
-        # Decide if it's shorts or normal video by URL pattern
+        # دیاریکردنی shorts یان ڤیدیۆی عادی
         if re.match(r'^https?://(?:www\.)?youtube\.com/shorts/', text):
             download_shorts(message)
         else:
             download_video(message)
     else:
-        # For non-YouTube links or texts, show welcome message
         send_welcome(message)
 
 def download_video(message):
@@ -160,7 +161,7 @@ def download_media(url, chat_id, msg_id, is_shorts=False):
         'outtmpl': 'downloads/%(title)s.%(ext)s',
         'merge_output_format': 'mp4',
         'quiet': True,
-        'cookiefile': 'cookies.txt',  # Make sure cookies.txt is in the same folder if needed
+        'cookiefile': 'cookies.txt',  # ئەگەر پێویستت بە cookie هەبێت
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
