@@ -23,7 +23,7 @@ stats = {
 }
 
 # Replace this with your GitHub raw URL to the tutorial video
-TUTORIAL_VIDEO_URL = "https://raw.githubusercontent.com/yourusername/yourrepo/main/tutorial_video.mp4"
+TUTORIAL_VIDEO_URL = "https://github.com/peshangsalam2001/bot2/blob/main/IMG_4141.MP4"
 
 def is_member(user_id):
     try:
@@ -81,7 +81,7 @@ def callback_handler(call):
         caption = "ئەم ڤیدیۆیە فێرکاری چۆنیەتی بەکارهێنانی بۆتەکەیە ✅"
         try:
             # Download video temporarily
-            video_data = download_video_from_url(https://github.com/peshangsalam2001/bot2/blob/main/IMG_4141.MP4)
+            video_data = download_video_from_url(TUTORIAL_VIDEO_URL)
             if video_data:
                 bot.send_video(call.message.chat.id, video_data, caption=caption)
             else:
