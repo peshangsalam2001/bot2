@@ -67,7 +67,7 @@ def check_card(message):
 
     pm_id = stripe_json.get('id')
     if not pm_id:
-        bot.reply_to(message, "❌ Failed to get payment method ID from Stripe.")
+        bot.reply_to(message, "❌ Failed get payment method ID from Stripe.")
         return
 
     # Step 2: Use pm_id in Bloomingriders API to create setup intent
