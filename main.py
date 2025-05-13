@@ -98,7 +98,7 @@ def check_card(user_id, card_info):
         'accept-encoding': 'gzip, deflate, br, zstd',
         'accept-language': 'en-US,en;q=0.9',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'cookie': f'cfid=f0999602-b357-441d-bce3-5e8d6861c302; cftoken=0; CF_CLIENT_CRIBFLYER_TC=1747139869662; _gcl_au=1.1.277038344.1747139873; _ga=GA1.2.509374650.1747139873; _gid=GA1.2.90002344.1747139873; __stripe_mid={pm_id}; __stripe_sid=e8dd1e23-3b38-4655-951e-e66134f0153e810f76; CF_CLIENT_CRIBFLYER_LV=1747139895458; CF_CLIENT_CRIBFLYER_HC=5; AWSALB=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl; AWSALBCORS=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl',
+        'cookie': f'cfid=f0999602-b357-441d-bce3-5e8d6861c302; cftoken=0; CF_CLIENT_CRIBFLYER_TC=1747139869662; _gcl_au=1.1.277038344.1747139873; _ga=GA1.2.509374650.1747139873; _gid=GA1.2.90002344.1747139873; __stripe_mid=976d1b11-0e75-48a9-b082-7f34b6ed436aa8eae6; __stripe_sid=e8dd1e23-3b38-4655-951e-e66134f0153e810f76; CF_CLIENT_CRIBFLYER_LV=1747139895458; CF_CLIENT_CRIBFLYER_HC=5; AWSALB=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl; AWSALBCORS=7oWW/ErKPjISa5eaNZseGPkDwIpJvANhyGZNZzp6qHBfBYejcPn4lWGnHO3nhaFig4PbGLu+r7bJH6OChuUHrJgsXISnrZ3XVgvuFq9mO3Pt67Vk67iKzoDAtsKl',
         'origin': 'https://www.cribflyer.com',
         'priority': 'u=1, i',
         'referer': 'https://www.cribflyer.com/signup?p=property_plan&qty=1',
