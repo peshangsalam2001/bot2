@@ -101,7 +101,7 @@ def check_card(card):
         data = response.json()
         # Determine card status
         messages = data.get("messages", [])
-        declined = any(msg.get("phrase") == "CardDeclined" for msg in messages)
+        declined = any(msg.get("type") == "danger" for msg in messages)
         status = "Declined" if declined else "Approved"
         return status, data
     except Exception as e:
