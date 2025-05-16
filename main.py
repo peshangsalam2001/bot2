@@ -20,6 +20,11 @@ def safe_json_parse(response):
     except Exception:
         return None
 
+def truncate_message(text, max_length=4000):
+    if len(text) > max_length:
+        return text[:max_length-15] + "\n\n...(truncated)"
+    return text
+
 def process_card(card_data):
     try:
         # Parse card formats
@@ -90,7 +95,9 @@ def process_card(card_data):
             status = "✅ Approved"
         else:
             status = "❌ Failure"
-        return f"{status}\nFull response:\n{result}"
+
+        full_response = f"{status}\nFull response:\n{result}"
+        return truncate_message(full_response)
 
     except requests.exceptions.RequestException as e:
         return f"⚠️ Network error: {str(e)}"
