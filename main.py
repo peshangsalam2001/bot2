@@ -5,7 +5,7 @@ import string
 import requests
 from telebot import TeleBot
 
-TOKEN = "7634693376:AAGzz0nE7BfOR2XE7gyWGB6s4ycAL8pOUqY"
+TOKEN = "7634693376:AAHc53uZc0wbi0BXW0X3ocZ-BBrxYqGzf7E"
 bot = TeleBot(TOKEN, parse_mode=None)
 
 processing_users = {}
